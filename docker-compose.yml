@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # Playwright test runner
+  playwright-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - BASE_URL=${BASE_URL:-http://localhost:8000}
+      - TEST_USERNAME=${TEST_USERNAME:-test_user}
+      - TEST_PASSWORD=${TEST_PASSWORD:-test_password}
+      - HEADLESS=${HEADLESS:-true}
+      - DB_TEST=${DB_TEST:-False}
+      - BROWSER_TYPE=${BROWSER_TYPE:-chromium}
+    volumes:
+      - ./reports:/app/reports
+      - ./screenshots:/app/screenshots
+      - ./tests:/app/tests
+    networks:
+      - test-network
+    depends_on:
+      - postgres
+      - redis
+    command: pytest --alluredir=reports/allure-results -v
+
+  # PostgreSQL database (optional - for backend testing)
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=${SQL_USER:-test_user}
+      - POSTGRES_PASSWORD=${SQL_PASSWORD:-test_password}
+      - POSTGRES_DB=${SQL_DBNAME:-test_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${SQL_USER:-test_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache (optional - for cache testing)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Allure report server (optional - for viewing reports)
+  allure:
+    image: frankescobar/allure-docker-service:latest
+    environment:
+      - CHECK_RESULTS_EVERY_SECONDS=5
+      - KEEP_HISTORY=1
+    ports:
+      - "5050:5050"
+    volumes:
+      - ./reports/allure-results:/app/allure-results
+      - ./reports/allure-reports:/app/allure-reports
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
