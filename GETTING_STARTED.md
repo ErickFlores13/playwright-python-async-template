@@ -67,125 +67,232 @@ DB_TEST=False
 
 ## 🎯 Quick Start Examples
 
-### Example 1: Simple Login Test
+### Example 1: Create Page Object for Your Module
 
-Create a file `tests/test_my_app.py`:
+First, create a page object class for your module:
 
 ```python
+# pages/my_module_page.py
+from pages.standard_web_page import StandardWebPage
+
+class MyModulePage(StandardWebPage):
+    """Page Object for My Module."""
+    
+    def __init__(self, page):
+        super().__init__(page)
+        
+        # Define selectors for your module
+        self.name_input = 'input[name="name"]'
+        self.email_input = 'input[name="email"]'
+        self.submit_button_selector = 'button[type="submit"]'
+    
+    async def navigate_to_module(self, base_url):
+        """Navigate to the module."""
+        await self.page.goto(f"{base_url}/my-module")
+    
+    async def create_item(self, item_data):
+        """Create a new item."""
+        form_data = {
+            self.name_input: item_data['name'],
+            self.email_input: item_data['email'],
+        }
+        await self.fill_data(form_data)
+        await self.page.click(self.submit_button_selector)
+```
+
+### Example 2: Write Test Using Page Object
+
+Then write tests that only call page object methods:
+
+```python
+# tests/test_my_module.py
 import pytest
-from pages.login_page import LoginPage
+from pages.my_module_page import MyModulePage
 from utils.config import Config
 
-
 @pytest.mark.asyncio
-async def test_login(page):
-    """Test basic login functionality."""
-    login_page = LoginPage(page)
+async def test_create_item(page):
+    """Test creating an item using page object."""
+    # Initialize page object
+    my_page = MyModulePage(page)
+    base_url = Config.get_base_url()
     
-    # Customize selectors for your app
-    login_page.username_selector = '#email'
-    login_page.password_selector = '#password'
-    login_page.submit_button_selector = 'button[type="submit"]'
+    # Navigate using page object method
+    await my_page.navigate_to_module(base_url)
     
-    # Navigate and login
-    await page.goto(Config.get_base_url())
-    await login_page.login(
-        Config.get_test_username(),
-        Config.get_test_password()
-    )
+    # Create item using page object method
+    item_data = {
+        'name': 'Test Item',
+        'email': 'test@example.com',
+    }
+    await my_page.create_item(item_data)
     
-    # Verify login success
-    assert await login_page.is_logged_in()
+    # Verify using page object method
+    await my_page.verify_success_message('Item created')
 ```
 
 Run the test:
 ```bash
-pytest tests/test_my_app.py --headed
+pytest tests/test_my_module.py --headed
 ```
 
-### Example 2: Test a Form
+### Example 3: Login Test with Page Object
 
 ```python
 import pytest
-from pages.base_page import BasePage
-
+from pages.examples.authentication_page import AuthenticationPage
+from utils.config import Config
 
 @pytest.mark.asyncio
-async def test_create_item(page):
-    """Test creating a new item."""
-    base_page = BasePage(page)
+async def test_login(page):
+    """Test login using page object."""
+    # Initialize page object
+    auth_page = AuthenticationPage(page)
     
-    await page.goto('https://your-app.com/items/create')
+    # Customize selectors if needed
+    auth_page.username_selector = '#email'
+    auth_page.password_selector = '#password'
     
-    # Fill form data
-    form_data = {
-        'input[name="title"]': 'Test Item',
-        'textarea[name="description"]': 'Test Description',
-        'select[name="category"]': 'Category A',
-        'input[type="checkbox"]': True,
-    }
+    # Perform login using page object method
+    await auth_page.perform_login(
+        Config.get_test_username(),
+        Config.get_test_password(),
+        Config.get_base_url()
+    )
     
-    await base_page.fill_data(form_data)
-    await page.click('button[type="submit"]')
-    
-    # Verify success
-    await base_page.is_visible('text=Item created successfully')
+    # Verify using page object method
+    assert await auth_page.verify_login_success()
 ```
 
-### Example 3: Test Table Filtering
+### Example 4: CRUD Operations with Page Object
 
 ```python
 import pytest
-from pages.standard_web_page import StandardWebPage
-
+from pages.examples.user_management_page import UserManagementPage
+from utils.config import Config
 
 @pytest.mark.asyncio
-async def test_filter_table(page):
-    """Test filtering table data."""
-    web_page = StandardWebPage(page)
+async def test_user_crud(page):
+    """Test complete CRUD flow using page object."""
+    # Initialize page object
+    user_page = UserManagementPage(page)
+    base_url = Config.get_base_url()
     
-    await page.goto('https://your-app.com/items')
+    # Navigate
+    await user_page.navigate_to_module(base_url)
     
-    # Configure selectors
-    web_page.filter_button_selector = 'button:has-text("Filter")'
-    
-    # Apply filters
-    filters = {
-        'input[name="search"]': 'Test',
-        'select[name="status"]': 'Active',
+    # Create
+    user_data = {
+        'username': 'test_user',
+        'email': 'test@example.com',
+        'first_name': 'Test',
+        'last_name': 'User',
+        'role': 'Admin',
     }
+    await user_page.create_user(user_data)
+    await user_page.verify_success_message('User created')
     
-    await web_page.validate_table_data(filters)
+    # Read/Search
+    await user_page.search_user({'username': 'test_user'})
+    
+    # Update
+    await user_page.edit_user({'role': 'Manager'})
+    await user_page.verify_success_message('User updated')
+    
+    # Delete
+    await user_page.delete_user()
+    await user_page.verify_success_message('User deleted')
 ```
 
 ## 🎨 Customizing for Your Application
 
-### 1. Customize Page Objects
+### 1. Create Page Objects for Your Modules
 
-Create a page object specific to your application:
+Always create a page object class that extends StandardWebPage:
 
 ```python
-# pages/my_app_page.py
-from pages.base_page import BasePage
+# pages/my_custom_module_page.py
+from pages.standard_web_page import StandardWebPage
 
-
-class MyAppPage(BasePage):
+class MyCustomModulePage(StandardWebPage):
+    """Page Object for your custom module."""
+    
     def __init__(self, page):
         super().__init__(page)
         
-        # Override selectors for your app
-        self.submit_button_selector = '.btn-primary'
-        self.delete_button_selector = '.btn-delete'
+        # Define ALL selectors for this module
+        self.field1_input = 'input[name="field1"]'
+        self.field2_select = 'select[name="field2"]'
         
-    async def navigate_to_dashboard(self):
-        """Custom method for your app."""
-        await self.page.click('[data-testid="dashboard-link"]')
-        await self.page.wait_for_load_state('networkidle')
+        # Override base selectors if needed
+        self.submit_button_selector = 'button.my-submit'
+        self.table_selector = '#my-table'
+    
+    async def navigate_to_module(self, base_url):
+        """Navigate to this module."""
+        await self.page.goto(f"{base_url}/my-module")
+    
+    async def perform_module_action(self, data):
+        """Custom action for this module."""
+        # Implement your module-specific logic
+        pass
 ```
 
-### 2. Configure for Different Frameworks
+### 2. Use Page Objects in Tests
+
+Tests should ONLY call page object methods:
+
+```python
+# tests/test_my_module.py
+import pytest
+from pages.my_custom_module_page import MyCustomModulePage
+from utils.config import Config
+
+@pytest.mark.asyncio
+async def test_my_module(page):
+    """Test using page object - NO direct page interaction."""
+    # Initialize page object
+    my_page = MyCustomModulePage(page)
+    
+    # All actions through page object methods
+    await my_page.navigate_to_module(Config.get_base_url())
+    await my_page.perform_module_action(data)
+    await my_page.verify_success_message('Success')
+```
+
+### 3. Page Object Model Best Practices
+
+**✅ DO:**
+- Create a page object class for each module
+- Put ALL selectors in the page object
+- Create methods for ALL actions
+- Tests ONLY call page object methods
+- Extend StandardWebPage for CRUD modules
+
+**❌ DON'T:**
+- Use selectors directly in test files
+- Call page.click(), page.fill() in tests
+- Mix page logic with test logic
+
+## 🎯 Framework Components
+
+### For Different Application Types
 
 #### Django Application
+
+Create page object extending StandardWebPage:
+```python
+# pages/django_admin_page.py
+from pages.standard_web_page import StandardWebPage
+
+class DjangoAdminPage(StandardWebPage):
+    def __init__(self, page):
+        super().__init__(page)
+        self.submit_button_selector = 'input[name="_save"]'
+        # Add Django-specific methods
+```
+
+Configuration:
 ```bash
 # .env
 BASE_URL=http://localhost:8000
@@ -196,6 +303,22 @@ SQL_DBNAME=django_db
 ```
 
 #### React/Vue SPA
+
+Create page object for SPA:
+```python
+# pages/spa_page.py
+from pages.base_page import BasePage
+
+class SPAPage(BasePage):
+    def __init__(self, page):
+        super().__init__(page)
+        self.app_root = '[data-testid="app-root"]'
+    
+    async def wait_for_app_load(self):
+        await self.wait_for_selector(self.app_root)
+```
+
+Configuration:
 ```bash
 # .env
 BASE_URL=http://localhost:3000
@@ -204,6 +327,8 @@ BROWSER_LOCALE=en-US
 ```
 
 #### Generic Web App
+
+Use base page objects and extend as needed:
 ```bash
 # .env
 BASE_URL=https://your-webapp.com

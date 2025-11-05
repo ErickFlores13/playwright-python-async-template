@@ -1,334 +1,305 @@
 """
-Example tests demonstrating CRUD operations using the framework.
+Example tests demonstrating CRUD operations using proper POM pattern.
 
-This module shows how to use BasePage and StandardWebPage classes
-to test Create, Read, Update, Delete operations in web applications.
+This module shows how to use Page Object classes to test CRUD operations.
+Tests only call methods from page objects, no direct page interaction.
 
 To run these tests:
     pytest tests/examples/test_crud_example.py --headed
 """
 
 import pytest
-from pages.base_page import BasePage
-from pages.standard_web_page import StandardWebPage
+from pages.examples.user_management_page import UserManagementPage
+from pages.examples.product_management_page import ProductManagementPage
 from utils.config import Config
-from utils.consts import FilterType, ValidationType, ButtonOperations
 
 
 @pytest.mark.skip(reason="Example test - customize for your application")
 @pytest.mark.asyncio
-class TestCRUDExamples:
+class TestUserManagementCRUD:
     """
-    Example test class demonstrating CRUD operations.
+    Example test class for User Management CRUD operations.
     
-    Note: These tests are examples and need to be customized
-    with your application's actual selectors and data.
+    Demonstrates proper POM: tests only call page object methods.
+    All selectors and page interactions are in UserManagementPage class.
     """
     
-    async def test_create_record(self, page):
+    async def test_create_user(self, page):
         """
-        Example: Create a new record in your application.
+        Test creating a new user.
         
-        This demonstrates how to:
-        1. Navigate to create form
-        2. Fill form fields using fill_data
-        3. Submit and verify creation
+        Uses page object method to create user, no direct page interaction.
         """
-        web_page = StandardWebPage(page)
+        # Initialize page object
+        user_page = UserManagementPage(page)
         base_url = Config.get_base_url()
         
-        # Navigate to your application
-        await page.goto(f"{base_url}/items")
+        # Navigate to module using page object method
+        await user_page.navigate_to_module(base_url)
         
-        # Click "Create New" button (customize selector)
-        await page.click('a:has-text("Create New")')
+        # Create user using page object method
+        user_data = {
+            'username': 'john_doe',
+            'email': 'john@example.com',
+            'first_name': 'John',
+            'last_name': 'Doe',
+            'role': 'Admin',
+            'is_active': True,
+        }
+        await user_page.create_user(user_data)
         
-        # Define form data to fill
-        form_data = {
-            'input[name="title"]': 'Test Item',
-            'input[name="description"]': 'This is a test item',
-            'select[name="category"]': 'Category 1',
-            'input[name="price"]': '99.99',
-            'input[name="is_active"]': True,  # Checkbox
+        # Verify success using page object method
+        await user_page.verify_success_message("User created successfully")
+    
+    async def test_search_and_validate_user(self, page):
+        """
+        Test searching for users and validating results.
+        
+        All search and validation through page object methods.
+        """
+        # Initialize page object
+        user_page = UserManagementPage(page)
+        base_url = Config.get_base_url()
+        
+        # Navigate to module
+        await user_page.navigate_to_module(base_url)
+        
+        # Search using page object method
+        search_filters = {
+            'username': 'john_doe',
+            'role': 'Admin',
         }
         
-        # Fill the form
-        await web_page.fill_data(form_data)
-        
-        # Update submit button selector for your app
-        web_page.submit_button_selector = 'button[type="submit"]'
-        await page.click(web_page.submit_button_selector)
-        
-        # Verify success message (customize selector)
-        await web_page.check_message("Item created successfully")
+        # Apply filters and validate using page object method
+        await user_page.apply_filters_and_validate(search_filters)
     
-    async def test_read_and_filter_records(self, page):
+    async def test_edit_user(self, page):
         """
-        Example: Read and filter records in a table.
+        Test editing an existing user.
         
-        This demonstrates how to:
-        1. Apply filters to search for records
-        2. Validate table data matches filters
+        Edit operation through page object method.
         """
-        web_page = StandardWebPage(page)
+        # Initialize page object
+        user_page = UserManagementPage(page)
         base_url = Config.get_base_url()
         
-        # Navigate to list page
-        await page.goto(f"{base_url}/items")
+        # Navigate and search for user
+        await user_page.navigate_to_module(base_url)
+        await user_page.search_user({'username': 'john_doe'})
         
-        # Update filter button selector for your app
-        web_page.filter_button_selector = 'button:has-text("Filter")'
-        
-        # Define filters
-        filters = {
-            'input[name="search"]': 'Test Item',
-            'select[name="category"]': 'Category 1',
+        # Edit user using page object method
+        updated_data = {
+            'email': 'john.doe@example.com',
+            'role': 'Manager',
         }
+        await user_page.edit_user(updated_data)
         
-        # Apply filters and validate results
-        await web_page.validate_table_data(filters)
+        # Verify success
+        await user_page.verify_success_message("User updated successfully")
     
-    async def test_update_record(self, page):
+    async def test_view_user_details(self, page):
         """
-        Example: Update an existing record.
+        Test viewing user details.
         
-        This demonstrates how to:
-        1. Navigate to edit form
-        2. Update specific fields
-        3. Submit and verify changes
+        Navigation and validation through page object methods.
         """
-        web_page = StandardWebPage(page)
+        # Initialize page object
+        user_page = UserManagementPage(page)
         base_url = Config.get_base_url()
         
-        # Navigate to list and click edit on first item
-        await page.goto(f"{base_url}/items")
-        await page.click('a[title="Edit"]')  # Customize selector
+        # Navigate and search
+        await user_page.navigate_to_module(base_url)
+        await user_page.search_user({'username': 'john_doe'})
         
-        # Define new data for update
-        update_data = {
-            'input[name="title"]': 'Updated Test Item',
-            'input[name="price"]': '149.99',
-        }
+        # View details using page object method
+        await user_page.view_user_details()
         
-        # Update submit button selector
-        web_page.submit_button_selector = 'button:has-text("Save")'
-        
-        # Perform the edit
-        await web_page.edit_item(update_data)
-        
-        # Verify success message
-        await web_page.check_message("Item updated successfully")
-    
-    async def test_delete_record(self, page):
-        """
-        Example: Delete a record.
-        
-        This demonstrates how to:
-        1. Navigate to record
-        2. Click delete and confirm
-        3. Verify deletion
-        """
-        web_page = StandardWebPage(page)
-        base_url = Config.get_base_url()
-        
-        # Navigate to list
-        await page.goto(f"{base_url}/items")
-        
-        # Update delete button selectors for your app
-        web_page.delete_button_selector = 'a[title="Delete"]'
-        web_page.confirm_delete_button_selector = 'button:has-text("Confirm")'
-        
-        # Click delete button on first item
-        await web_page.delete_item()
-        
-        # Verify deletion message
-        await web_page.check_message("Item deleted successfully")
-    
-    async def test_validate_record_details(self, page):
-        """
-        Example: Validate record details in view mode.
-        
-        This demonstrates how to verify displayed data.
-        """
-        web_page = StandardWebPage(page)
-        base_url = Config.get_base_url()
-        
-        # Navigate to detail view
-        await page.goto(f"{base_url}/items/1")  # Assuming item with ID 1 exists
-        
-        # Define expected data
+        # Validate details using page object method
         expected_data = {
-            'label[name="title"]': 'Test Item',
-            'label[name="price"]': '99.99',
-            'label[name="category"]': 'Category 1',
+            'username': 'john_doe',
+            'email': 'john.doe@example.com',
+            'full_name': 'John Doe',
+            'role': 'Manager',
         }
-        
-        # Validate the displayed data
-        await web_page.validate_record_information_in_details_view(expected_data)
-
-
-@pytest.mark.skip(reason="Example test - customize for your application")
-@pytest.mark.asyncio
-class TestFormValidationExamples:
-    """
-    Examples demonstrating form validation testing.
-    """
+        await user_page.validate_user_details(expected_data)
     
-    async def test_required_field_validation(self, page):
+    async def test_delete_user(self, page):
         """
-        Example: Test that required fields are enforced.
+        Test deleting a user.
+        
+        Delete operation through page object method.
         """
-        web_page = StandardWebPage(page)
+        # Initialize page object
+        user_page = UserManagementPage(page)
         base_url = Config.get_base_url()
         
-        await page.goto(f"{base_url}/items/create")
+        # Navigate and search
+        await user_page.navigate_to_module(base_url)
+        await user_page.search_user({'username': 'john_doe'})
         
-        # Update submit button selector
-        web_page.submit_button_selector = 'button[type="submit"]'
+        # Delete using page object method
+        await user_page.delete_user()
         
-        # Try to submit with empty required field
-        form_data = {
-            'input[name="title"]': '',  # Required field left empty
-            'input[name="price"]': '99.99',
-        }
-        
-        # Test required field validation
-        await web_page.fields_validations(
-            data=form_data,
-            field_selector='input[name="title"]',
-            validation_type=ValidationType.REQUIRED
-        )
-        
-        # Verify validation error appears (customize selector)
-        error = page.locator('.error:has-text("This field is required")')
-        assert await error.is_visible()
-    
-    async def test_max_length_validation(self, page):
-        """
-        Example: Test field max length validation.
-        """
-        web_page = StandardWebPage(page)
-        base_url = Config.get_base_url()
-        
-        await page.goto(f"{base_url}/items/create")
-        
-        # Update submit button selector
-        web_page.submit_button_selector = 'button[type="submit"]'
-        
-        # Try to submit with too long text
-        form_data = {
-            'input[name="title"]': 'A' * 500,  # Exceeds max length
-        }
-        
-        # Test max length validation
-        await web_page.fields_validations(
-            data=form_data,
-            field_selector='input[name="title"]',
-            validation_type=ValidationType.MAX_LENGTH
-        )
-        
-        # Verify validation error
-        error = page.locator('.error:has-text("maximum length")')
-        assert await error.is_visible()
-
-
-@pytest.mark.skip(reason="Example test - customize for your application")
-@pytest.mark.asyncio
-class TestFilterExamples:
-    """
-    Examples demonstrating filter testing.
-    """
-    
-    async def test_empty_filters(self, page):
-        """
-        Example: Test filtering with no criteria.
-        """
-        web_page = StandardWebPage(page)
-        base_url = Config.get_base_url()
-        
-        async def goto_index():
-            await page.goto(f"{base_url}/items")
-        
-        # Update filter button selector
-        web_page.filter_button_selector = 'button:has-text("Filter")'
-        
-        # Test empty filter behavior
-        await web_page.validate_filter(
-            filter_type=FilterType.EMPTY,
-            view_to_validate=goto_index
-        )
+        # Verify success
+        await user_page.verify_success_message("User deleted successfully")
     
     async def test_clear_filters(self, page):
         """
-        Example: Test clear filters functionality.
+        Test clearing search filters.
+        
+        Filter operations through page object methods.
         """
-        web_page = StandardWebPage(page)
+        # Initialize page object
+        user_page = UserManagementPage(page)
         base_url = Config.get_base_url()
         
-        async def goto_index():
-            await page.goto(f"{base_url}/items")
+        # Navigate and apply filters
+        await user_page.navigate_to_module(base_url)
         
-        # Update selectors
-        web_page.filter_button_selector = 'button:has-text("Filter")'
-        web_page.clear_filters_selector = 'button:has-text("Clear")'
-        
-        # Define filters to apply and then clear
-        filters = {
-            'input[name="search"]': 'Test',
-            'select[name="category"]': 'Category 1',
+        filter_fields = {
+            user_page.username_input: 'test',
+            user_page.role_select: 'Admin',
         }
         
-        # Test clear filters functionality
-        await web_page.validate_filter(
-            filter_type=FilterType.CLEAR,
-            view_to_validate=goto_index,
-            data_filters=filters
-        )
+        # Apply and then clear filters using page object methods
+        await user_page.search_user({'username': 'test', 'role': 'Admin'})
+        await user_page.clear_all_filters(filter_fields)
 
 
 @pytest.mark.skip(reason="Example test - customize for your application")
 @pytest.mark.asyncio
-class TestButtonOperationsExamples:
+class TestProductManagementCRUD:
     """
-    Examples demonstrating cancel and back button operations.
+    Example test class for Product Management CRUD operations.
+    
+    Demonstrates POM pattern for a different module type (e-commerce).
     """
     
-    async def test_cancel_create_operation(self, page):
+    async def test_create_product(self, page):
         """
-        Example: Test cancel button on create form.
+        Test creating a new product.
+        
+        Uses ProductManagementPage methods only.
         """
-        web_page = StandardWebPage(page)
+        # Initialize page object
+        product_page = ProductManagementPage(page)
         base_url = Config.get_base_url()
         
-        async def goto_create():
-            await page.goto(f"{base_url}/items/create")
+        # Navigate using page object method
+        await product_page.navigate_to_products(base_url)
         
-        # Update cancel button selector
-        web_page.cancel_form_selector = 'a:has-text("Cancel")'
-        web_page.title_selector = 'h1:has-text("Items List")'
+        # Create product using page object method
+        product_data = {
+            'name': 'Widget Pro',
+            'description': 'Premium widget for professionals',
+            'price': '99.99',
+            'sku': 'WGT-PRO-001',
+            'category': 'Electronics',
+            'stock': '50',
+            'is_active': True,
+            'is_featured': True,
+        }
+        await product_page.create_product(product_data)
         
-        # Test cancel operation
-        await web_page.validate_button_operations(
-            operation_type=ButtonOperations.CANCEL_CREATE,
-            form_method=goto_create
-        )
+        # Verify using page object method
+        await product_page.verify_operation_success("Product created successfully")
     
-    async def test_back_button_from_detail(self, page):
+    async def test_search_products(self, page):
         """
-        Example: Test back button from detail view.
+        Test searching for products.
+        
+        Search and validation through page object methods.
         """
-        web_page = StandardWebPage(page)
+        # Initialize page object
+        product_page = ProductManagementPage(page)
         base_url = Config.get_base_url()
         
-        async def goto_detail():
-            await page.goto(f"{base_url}/items/1")
+        # Navigate
+        await product_page.navigate_to_products(base_url)
         
-        # Update back button selector
-        web_page.back_button = 'a:has-text("Back")'
-        web_page.title_selector = 'h1:has-text("Items List")'
+        # Search using page object method
+        search_criteria = {
+            'name': 'Widget',
+            'category': 'Electronics',
+        }
+        await product_page.search_products(search_criteria)
         
-        # Test back operation
-        await web_page.validate_button_operations(
-            operation_type=ButtonOperations.BACK_DETAIL,
-            form_method=goto_detail
-        )
+        # Validate results using page object method
+        await product_page.validate_product_in_list({'name': 'Widget Pro'})
+    
+    async def test_update_product(self, page):
+        """
+        Test updating a product.
+        
+        Update through page object method.
+        """
+        # Initialize page object
+        product_page = ProductManagementPage(page)
+        base_url = Config.get_base_url()
+        
+        # Navigate and search
+        await product_page.navigate_to_products(base_url)
+        await product_page.search_products({'name': 'Widget Pro'})
+        
+        # Update using page object method
+        updated_data = {
+            'price': '149.99',
+            'stock': '100',
+            'is_featured': False,
+        }
+        await product_page.update_product(updated_data)
+        
+        # Verify
+        await product_page.verify_operation_success("Product updated successfully")
+    
+    async def test_view_product_details(self, page):
+        """
+        Test viewing product details.
+        
+        Detail view and validation through page object methods.
+        """
+        # Initialize page object
+        product_page = ProductManagementPage(page)
+        base_url = Config.get_base_url()
+        
+        # Navigate and search
+        await product_page.navigate_to_products(base_url)
+        await product_page.search_products({'sku': 'WGT-PRO-001'})
+        
+        # View details using page object method
+        await product_page.view_product_details()
+        
+        # Validate using page object method
+        expected_data = {
+            'name': 'Widget Pro',
+            'price': '149.99',
+            'sku': 'WGT-PRO-001',
+            'stock': '100',
+        }
+        await product_page.validate_product_details(expected_data)
+    
+    async def test_delete_product(self, page):
+        """
+        Test deleting a product.
+        
+        Delete through page object method.
+        """
+        # Initialize page object
+        product_page = ProductManagementPage(page)
+        base_url = Config.get_base_url()
+        
+        # Navigate and search
+        await product_page.navigate_to_products(base_url)
+        await product_page.search_products({'sku': 'WGT-PRO-001'})
+        
+        # Delete using page object method
+        await product_page.delete_product()
+        
+        # Verify
+        await product_page.verify_operation_success("Product deleted successfully")
+
+
+# NOTE: For form validation, button operations, and filter testing,
+# implement dedicated methods in your page object classes following
+# the same POM pattern shown above. Each page object should encapsulate
+# all the logic for its module, and tests should only call those methods.
