@@ -562,10 +562,16 @@ class BasePage:
         """Verifies that an input element has the expected value."""
         await expect(self.page.locator(selector)).to_have_value(value)
 
-    async def wait_for_selector(self, selector: str, time_sleep: float = 0.05) -> None:
-        """Waits for an element to appear on the page."""
+    async def wait_for_selector(self, selector: str, additional_wait: float = 0.05) -> None:
+        """
+        Waits for an element to appear on the page.
+        
+        Args:
+            selector: CSS selector of the element to wait for
+            additional_wait: Additional time in seconds to wait after element appears (default: 0.05)
+        """
         await self.page.wait_for_selector(selector)
-        await asyncio.sleep(time_sleep)
+        await asyncio.sleep(additional_wait)
 
     async def is_hidden(self, selector: str) -> None:
         """Verifies that an element is hidden on the page."""

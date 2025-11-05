@@ -121,7 +121,7 @@ class TestPublicDemoSite:
         await page.click('button:has-text("Start")')
         
         # Wait for the dynamically loaded element
-        await base_page.wait_for_selector('#finish', time_sleep=0.1)
+        await base_page.wait_for_selector('#finish', additional_wait=0.1)
         
         # Verify the content
         await expect(page.locator('#finish')).to_contain_text('Hello World!')

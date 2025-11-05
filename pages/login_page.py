@@ -122,7 +122,9 @@ class LoginPage(BasePage):
             try:
                 await self.page.wait_for_selector(success_indicator, timeout=5000)
                 return True
-            except:
+            except TimeoutError:
+                return False
+            except Exception:
                 return False
         
         # Default: check if we're not on the login page anymore

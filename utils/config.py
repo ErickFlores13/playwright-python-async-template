@@ -75,10 +75,15 @@ class Config:
         Returns:
             Dictionary with Redis connection parameters
         """
+        try:
+            redis_db = int(os.getenv('REDIS_DB', '0'))
+        except ValueError:
+            redis_db = 0  # Default to 0 if invalid value
+            
         return {
             'host': os.getenv('REDIS_HOST', 'localhost'),
             'port': os.getenv('REDIS_PORT', '6379'),
-            'db': int(os.getenv('REDIS_DB', '0'))
+            'db': redis_db
         }
     
     # ========== Browser Settings ==========
