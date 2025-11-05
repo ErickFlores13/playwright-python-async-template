@@ -45,7 +45,7 @@ logger = logging.getLogger(__name__)
 
 # --- Pytest event loop fixture -------------------------------------------------
 @pytest_asyncio.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None]:
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create a dedicated asyncio event loop for the test session."""
     loop = asyncio.new_event_loop()
     yield loop
