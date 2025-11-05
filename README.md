@@ -21,24 +21,31 @@ A **modular, scalable, and maintainable test automation framework** built with *
 
 ```bash
 .
-├── conftest.py               # Global Pytest configuration and fixtures
-├── base_page.py              # Core base class with reusable interaction methods
-├── standard_web_page.py      # Generic methods for web page interactions
-├── consts.py                 # Global constants and selectors
-├── redis_client.py           # Redis connection client
-├── database.py               # PostgreSQL connection and query module
-├── requirements.txt          # Project dependencies
-├── Dockerfile                # Docker setup for CI/CD execution
-├── README.md                 # Project documentation
-└── tests/                    # Test cases and suites
+├── pages/
+│   ├── base_page.py              # Core reusable Playwright actions (click, fill, wait, scroll, etc.)
+│   └── standard_web_page.py      # Extends BasePage with common UI actions (filters, buttons, validations)
+│
+├── helpers/
+│   ├── database.py               # PostgreSQL client for database operations and validations
+│   └── redis_client.py           # Redis client for cache and queue-related validations
+│
+├── utils/
+│   └── consts.py                 # Centralized constants, selectors, and reusable config values
+│
+├── tests/                        # Test suites organized by feature or module
+│
+├── conftest.py                   # Pytest fixtures and global setup
+├── requirements.txt              # Python dependencies
+└── Dockerfile                    # Docker setup for isolated CI/CD test execution
+
 ```
 
 ## ⚙️ Setup and Installation
 
 Clone the repository:
 ```bash
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
+git clone https://github.com/ErickFlores13/playwright-python-async-template.git
+cd playwright-python-async-template
 ```
 
 Create a virtual environment:
