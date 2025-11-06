@@ -131,7 +131,7 @@ class LoginPage(BasePage):
         current_url = self.page.url
         return 'login' not in current_url.lower()
     
-    async def logout(self, logout_selector: str = None) -> None:
+    async def logout(self, logout_selector: str) -> None:
         """
         Perform logout operation.
         
@@ -141,6 +141,5 @@ class LoginPage(BasePage):
         Example:
             >>> await login_page.logout('button[data-testid="logout"]')
         """
-        if logout_selector:
-            await self.page.click(logout_selector)
-            await self.page.wait_for_load_state("networkidle")
+        await self.page.click(logout_selector)
+        await self.page.wait_for_load_state("networkidle")
