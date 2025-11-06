@@ -1,11 +1,27 @@
-SQLAlchemy==2.0.32
-SQLAlchemy-Utils==0.41.2
-pytest-sqlalchemy==0.2.1
-allure-pytest==2.15.0
-allure-python-commons==2.15.0
-redis==5.0.8
-python-dotenv==1.0.1
+# Core testing framework
 pytest==8.2.0
 pytest-asyncio==0.21.2
 pytest-rerunfailures==14.0
+
+# Playwright browser automation
 playwright==1.46.0
+
+# Database integration
+SQLAlchemy==2.0.32
+SQLAlchemy-Utils==0.41.2
+pytest-sqlalchemy==0.2.1
+
+# Redis cache integration
+redis==5.0.8
+
+# Configuration and environment
+python-dotenv==1.0.1
+
+# Reporting and logging
+allure-pytest==2.15.0
+allure-python-commons==2.15.0
+
+# Additional utilities
+pytest-xdist==3.5.0  # For parallel test execution
+pytest-html==4.1.1   # HTML reports
+pytest-cov==4.1.0    # Coverage reports
