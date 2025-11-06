@@ -1,0 +1,132 @@
+pipeline {
+    agent none
+
+    // Optional: schedule job automatically at 3 AM from Monday to Friday
+    triggers {
+        cron('H 3 * * 1-5')
+    }
+
+    environment {
+        // ====== Global Environment Variables ======
+        DISCORD_WEBHOOK = credentials('discord-webhook-id') // Set in Jenkins credentials
+        REPORT_URL = 'https://your-report-server-url.com'    // Optional external report location
+    }
+
+    stages {
+
+        stage('Initialize Build Metadata') {
+            agent any
+            steps {
+                script {
+                    env.REPORT_DATE = new Date().format("yyyy-MM-dd_HH-mm-ss")
+                    env.REPORT_NAME = "report-${env.REPORT_DATE}"
+                    env.REPORT_DIR = "report/${env.REPORT_NAME}-html"
+                    echo "📅 Build timestamp: ${env.REPORT_DATE}"
+                    echo "📁 Report folder: ${env.REPORT_DIR}"
+                }
+            }
+        }
+
+        stage('Checkout Repository') {
+            agent any
+            steps {
+                git branch: 'main', // ← Replace with your branch if needed
+                    credentialsId: 'github-ssh-key-id', // ← Replace with your Jenkins credential ID
+                    url: 'git@github.com:<your-org>/<your-repo>.git' // ← Replace with your repo
+                echo "📦 Repository checkout completed successfully."
+            }
+        }
+
+        stage('Build and Run Tests') {
+            agent {
+                dockerfile {
+                    filename 'Dockerfile' // Ensures reproducible environment
+                }
+            }
+
+            steps {
+                sh """
+                    #!/bin/bash
+                    set -e
+                    echo "🐍 Setting up Python environment..."
+                    export HOME=/tmp
+                    mkdir -p .python_packages
+                    export PYTHONUSERBASE=\$(pwd)/.python_packages
+                    export PATH=\$PYTHONUSERBASE/bin:\$PATH
+
+                    echo "🧩 Installing Playwright browsers..."
+                    playwright install chromium
+
+                    echo "⚙️ Loading environment variables..."
+                    cp .env.example .env
+
+                    echo "🧪 Running tests with pytest + Allure..."
+                    mkdir -p report/${env.REPORT_NAME}
+                    pytest --alluredir=report/${env.REPORT_NAME} \
+                        -v --ignore=.python_packages/ -m smoke_test --reruns 3 --reruns-delay 3
+                """
+            }
+
+            post {
+                always {
+                    script {
+                        echo "📊 Generating Allure report..."
+                        try {
+                            sh """
+                                #!/bin/bash
+                                set -e
+                                export HOME=/tmp
+                                export PYTHONUSERBASE=\$(pwd)/.python_packages
+                                export PATH=\$PYTHONUSERBASE/bin:\$PATH
+                                
+                                allure generate report/${env.REPORT_NAME} -o ${env.REPORT_DIR} --clean
+                                echo "✅ Allure report successfully generated."
+                            """
+                        } catch (Exception e) {
+                            echo "⚠️ Failed to generate Allure report: ${e.getMessage()}"
+                        }
+
+                        echo "📢 Sending notification to Discord..."
+                        discordSend(
+                            webhookURL: env.DISCORD_WEBHOOK,
+                            description: "**Result:** ${currentBuild.currentResult}\n" +
+                                         "**Job:** ${JOB_NAME}\n" +
+                                         "**Build URL:** [Open Build](${env.BUILD_URL})\n" +
+                                         "**Allure Report:** [View Report](${env.REPORT_URL})",
+                            footer: 'Automated QA Execution Framework',
+                            link: env.BUILD_URL,
+                            result: currentBuild.currentResult,
+                            title: "🚀 ${JOB_NAME} - Test Execution"
+                        )
+
+                        echo "🌐 Publishing HTML report to Jenkins..."
+                        publishHTML([
+                            allowMissing: true,
+                            keepAll: true,
+                            alwaysLinkToLastBuild: true,
+                            reportDir: "${env.REPORT_DIR}",
+                            reportFiles: 'index.html',
+                            reportName: 'AllureTestReport'
+                        ])
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ All tests passed successfully!"
+        }
+        failure {
+            echo "❌ Test execution failed. Please check the Allure report for details."
+        }
+        unstable {
+            echo "⚠️ Tests completed with some failures or flaky results."
+        }
+        always {
+            echo "🧹 Pipeline finished. Cleaning up workspace..."
+            cleanWs()
+        }
+    }
+}
