@@ -1,8 +1,15 @@
 import asyncio
 import logging
-from playwright.async_api import Page, expect, Locator
+from playwright.async_api import Page, expect, Locator, TimeoutError as PlaywrightTimeoutError
 from typing import Literal, Union
-from utils.exceptions import ElementNotFoundError, Select2Error, ValidationError
+from utils.exceptions import (
+    ElementNotFoundError, 
+    Select2Error, 
+    ValidationError,
+    ConfigurationError,
+    DatabaseError,
+    RedisError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -12,30 +19,54 @@ class BasePage:
     """
 
     def __init__(self, page: Page):
-        """Inicializa la clase BasePage con una instancia de la página de Playwright.
-        
-        Args:
-            page: Instancia de la página de Playwright.
-        """
+        if not page:
+            raise ConfigurationError(
+                config_key="page",
+                message="Page instance cannot be None or empty"
+            )
+            
         self.page = page
-        self.delete_button_selector = 'delete_button_selector'
-        self.confirm_delete_button_selector = 'confirm_delete_button_selector'
-        self.filter_button_selector = 'filter_button_selector'
-        self.submit_button_selector = 'submit_button_selector'
-        self.toggle_selector = 'toggle_selector'
-        self.modal_message_selector = 'modal_selector'
-        self.continue_button_selector = 'continue_selector'
-        self.remove_options_select2 = 'button[title="Remove all items"]'
-        self.searcher_select2_selector = 'searcher_select2_selector'
-        self.select2_selector = 'select2_selector'
+        # Default Select2 configuration - override in subclasses as needed
+        self.use_select2 = True  # Enable Select2 by default
+        self.remove_options_selector = 'button[title="Remove all items"]'
+        self.searcher_selector = '.select2-search__field'
+        self.select2_indicator = 'data-select2-id'
+        
+        # Validate Select2 configuration
+        self._validate_select2_config()
+
+    def _validate_select2_config(self) -> None:
+        """
+        Validates Select2 configuration parameters.
+        
+        Raises:
+            ConfigurationError: if Select2 configuration is invalid.
+        """
+        if self.use_select2:
+            if not isinstance(self.remove_options_selector, str) or not self.remove_options_selector.strip():
+                raise ConfigurationError(
+                    config_key="remove_options_selector",
+                    message="Select2 remove_options_selector must be a non-empty string"
+                )
+            
+            if not isinstance(self.searcher_selector, str) or not self.searcher_selector.strip():
+                raise ConfigurationError(
+                    config_key="searcher_selector",
+                    message="Select2 searcher_selector must be a non-empty string"
+                )
+            
+            if not isinstance(self.select2_indicator, str) or not self.select2_indicator.strip():
+                raise ConfigurationError(
+                    config_key="select2_indicator",
+                    message="Select2 select2_indicator must be a non-empty string"
+                )
 
     async def fill_data(self, data: dict) -> None:
         """
         Populates form fields with provided data for creation, editing, or filtering.
 
         Args:
-            data (dict): Dictionary where keys are field selectors and values are
-                        the values to fill in.
+            data (dict): Dictionary where keys are field selectors and values are the values to fill in.
 
         Supported field types:
             - Text inputs, textareas, date/time inputs: fills the value.
@@ -44,53 +75,85 @@ class BasePage:
             - File inputs: uploads the specified file.
             - Buttons: handles single click or list of actions.
             - Select elements: selects the option matching the text.
-            - Select2 elements: handles clicks, typing, and selecting options.
+            - Select2 elements: handles clicks, typing, and selecting options (if use_select2=True).
 
-        Example:
-            await fill_data({
-                'input[name="username"]': 'john_doe',
-                'input[name="accept_terms"]': True,
-                'select[name="country"]': 'USA',
-                'input[type="file"]': 'path/to/file.txt'
-            })
-            
-            **This fills in the username, checks the terms acceptance, selects a country, and uploads a file.**
+        Configuration:
+            Select2 behavior is controlled by class attributes set during initialization.
+            See __init__ method documentation for configuration examples.
+
+        Raises:
+            ElementNotFoundError: if field element is not found.
+            ValidationError: if field validation fails.
+            Select2Error: if Select2 operations fail.
 
         Notes:
             - Assumes the user is already on the form page.
             - Selectors in the data dictionary must match actual DOM elements.
+            - If use_select2=False, all select elements are treated as native HTML selects.
         """
         for field_name, value in data.items():
-            field_input = self.page.locator(field_name)
-            tag_name = await field_input.evaluate('el => el.tagName')
-            input_type = await field_input.evaluate('el => el.type')
-            idselect2 = await field_input.evaluate('el => el.getAttribute("data-select2-id")')      
-
-            if input_type == 'file':
-                await field_input.set_input_files(value)
-
-            elif input_type == 'radio':
-                if await field_input.evaluate('el => el.value') == value:
-                    await field_input.check()
-
-            elif input_type == 'checkbox':
-                if value:  
-                    await field_input.check()
-                else:
-                    await field_input.uncheck()
-
-            elif input_type == 'button':
-                await self._handle_button(field_input, value)
-
-            elif tag_name == 'SELECT' and not idselect2:
-                await self._handle_select(field_input, value)
-
-            elif tag_name == 'INPUT' or tag_name == 'TEXTAREA' or input_type == 'datetime-local' or input_type == 'date' or input_type == 'time':
-                await field_input.fill(value)
-
-            else:
-                await self._handle_select2(field_input, value)
+            try:
+                field_input = self.page.locator(field_name)
                 
+                # Check if element exists and is visible
+                if not await field_input.is_visible():
+                    raise ElementNotFoundError(field_name, timeout=5000)
+                
+                tag_name = await field_input.evaluate('el => el.tagName')
+                input_type = await field_input.evaluate('el => el.type')
+                idselect2 = None
+                if self.use_select2:
+                    idselect2 = await field_input.evaluate('el => el.getAttribute("data-select2-id")')      
+
+                if input_type == 'file':
+                    if not isinstance(value, (str, list)):
+                        raise ValidationError(field_name, f"File input expects string or list, got {type(value).__name__}")
+                    await field_input.set_input_files(value)
+
+                elif input_type == 'radio':
+                    if await field_input.evaluate('el => el.value') == value:
+                        await field_input.check()
+
+                elif input_type == 'checkbox':
+                    if not isinstance(value, bool):
+                        raise ValidationError(field_name, f"Checkbox expects boolean, got {type(value).__name__}")
+                    if value:  
+                        await field_input.check()
+                    else:
+                        await field_input.uncheck()
+
+                elif input_type == 'button':
+                    await self._handle_button(field_input, value)
+
+                elif tag_name == 'SELECT' and (not self.use_select2 or not idselect2):
+                    # Use native select handling if Select2 is disabled OR if no Select2 ID is found
+                    await self._handle_select(field_input, value)
+
+                elif tag_name == 'INPUT' or tag_name == 'TEXTAREA' or input_type == 'datetime-local' or input_type == 'date' or input_type == 'time':
+                    if not isinstance(value, (str, int, float)):
+                        raise ValidationError(field_name, f"Input field expects string, int, or float, got {type(value).__name__}")
+                    await field_input.fill(str(value))
+
+                elif self.use_select2:
+                    # Only try Select2 handling if explicitly enabled
+                    await self._handle_select2(field_input, value)
+                
+                else:
+                    # Fallback to native select for any remaining select elements
+                    if tag_name == 'SELECT':
+                        await self._handle_select(field_input, value)
+                    else:
+                        # For any other element type, try to fill as text
+                        if not isinstance(value, (str, int, float)):
+                            raise ValidationError(field_name, f"Field expects string, int, or float, got {type(value).__name__}")
+                        await field_input.fill(str(value))
+                        
+            except (ElementNotFoundError, ValidationError, Select2Error):
+                raise
+            except Exception as e:
+                logger.error(f"Unexpected error filling field '{field_name}': {e}")
+                raise ValidationError(field_name, f"Unexpected error: {str(e)}") from e
+
     async def _handle_button(self, field_input: Locator, value: Union[list, str]) -> None:
         """
         Handles clicking buttons during form filling.
@@ -130,53 +193,40 @@ class BasePage:
             value (str): Text of the option to select.
 
         Raises:
-            Exception: if no matching option is found.
+            ElementNotFoundError: if no matching option is found.
+            ValidationError: if the select element is not valid or accessible.
         """
-        await self.page.wait_for_load_state('networkidle')
-        new_value = await field_input.evaluate(
-            """(select, val) => {
-                const option = Array.from(select.options).find(o => o.textContent.includes(val));
-                return option ? option.value : null;
-            }""",
-            value
-        )
+        try:
+            await self.page.wait_for_load_state('networkidle')
+            
+            # Validate that the select element exists and is visible
+            if not await field_input.is_visible():
+                selector = await field_input.evaluate('el => el.tagName + (el.id ? "#" + el.id : "") + (el.className ? "." + el.className.replace(/ /g, ".") : "")')
+                raise ElementNotFoundError(selector, timeout=5000)
+            
+            new_value = await field_input.evaluate(
+                """(select, val) => {
+                    const option = Array.from(select.options).find(o => o.textContent.includes(val));
+                    return option ? option.value : null;
+                }""",
+                value
+            )
 
-        if new_value is not None:
-            await field_input.select_option(new_value)
-        else:
-            raise Exception(f'No option containing {value} found')
+            if new_value is not None:
+                await field_input.select_option(new_value)
+            else:
+                selector = await field_input.evaluate('el => el.tagName + (el.id ? "#" + el.id : "") + (el.className ? "." + el.className.replace(/ /g, ".") : "")')
+                raise ValidationError(message=f'No option containing "{value}" found in select element {selector}')
+                
+        except PlaywrightTimeoutError as e:
+            selector = await field_input.evaluate('el => el.tagName + (el.id ? "#" + el.id : "") + (el.className ? "." + el.className.replace(/ /g, ".") : "")')
+            raise ElementNotFoundError(selector, timeout=5000) from e
+        except Exception as e:
+            if not isinstance(e, (ElementNotFoundError, ValidationError)):
+                logger.error(f"Unexpected error in _handle_select: {e}")
+                raise ValidationError(message=f"Failed to handle select element: {str(e)}") from e
+            raise
         
-    async def _handle_select2(self, field_input: Locator, value: Union[str, list, dict, set]):
-        """
-        Handles interaction with Select2 dropdowns.
-
-        Args:
-            field_input (Locator): Playwright locator of the Select2 field.
-            value (str | list | set | dict): Value(s) to select. Supports nested dict for complex inputs.
-        """
-        await field_input.click()
-
-        if isinstance(value, dict):
-            for selector_to_write, input_values in value.items():
-                # Asegurar que siempre sea lista
-                input_values = input_values if isinstance(input_values, list) else [input_values]
-
-                for input_value in input_values:
-                    # Si es el selector especial, omitir esta iteración
-                    if selector_to_write == self.remove_options_select2:
-                        continue
-
-                    # Resto de los casos: llenar y manejar
-                    await self.page.locator(selector_to_write).fill(input_value)
-                    await self._handle_select2_options(input_value)
-
-        elif isinstance(value, (set, list)):
-            for input_value in value:
-                await self._handle_select2_options(input_value)
-
-        else:
-            await self._handle_select2_options(value)
-
     async def _handle_select2_options(self, input_value: str) -> None:
         """
         Handles selecting an individual option in a Select2 dropdown.
@@ -184,47 +234,118 @@ class BasePage:
         Args:
             input_value (str): Option value to select. If empty string, clears the selection.
 
+        Raises:
+            Select2Error: if Select2 operations fail.
+            ElementNotFoundError: if required Select2 elements are not found.
+
         Notes:
-            - Waits for options to be visible.
+            - Uses class attributes for Select2 selectors.
             - Falls back to pressing Enter if option is not clickable.
         """
-        if input_value == '':
-            remove_value_locator = self.page.locator(self.remove_options_select2).first
-            if await remove_value_locator.is_visible():
-                await self.page.click(self.remove_options_select2)
+        try:
+            if input_value == '':
+                remove_value_locator = self.page.locator(self.remove_options_selector).first
+                if await remove_value_locator.is_visible():
+                    await self.page.click(self.remove_options_selector)
+                else:
+                    await self.page.keyboard.press('Escape')
             else:
-                await self.page.keyboard.press('Escape')
-        else:
-            search_input = self.page.locator(self.searcher_select2_selector).first
-            await search_input.fill(input_value)
-            option_locator = self.page.locator(f'.select2-results__option:has-text("{input_value}")').first
-            await option_locator.wait_for(timeout=10000)
-            if await option_locator.is_visible():
-                await option_locator.click()
-            else:
-                await self.page.wait_for_timeout(1000)
-                await self.page.keyboard.press('Enter')
+                search_input = self.page.locator(self.searcher_selector).first
+                
+                # Validate that the search input exists
+                if not await search_input.is_visible():
+                    raise Select2Error(
+                        selector=self.searcher_selector,
+                        operation="search_input_visibility",
+                        message="Select2 search input is not visible"
+                    )
+                
+                await search_input.fill(input_value)
+                option_locator = self.page.locator(f'.select2-results__option:has-text("{input_value}")').first
+                
+                try:
+                    await option_locator.wait_for(timeout=10000)
+                    if await option_locator.is_visible():
+                        await option_locator.click()
+                    else:
+                        logger.warning(f"Select2 option '{input_value}' not visible, using keyboard fallback")
+                        await self.page.wait_for_timeout(1000)
+                        await self.page.keyboard.press('Enter')
+                except PlaywrightTimeoutError:
+                    raise Select2Error(
+                        selector=f'.select2-results__option:has-text("{input_value}")',
+                        operation="option_selection",
+                        message=f"Option '{input_value}' not found in Select2 dropdown within timeout"
+                    )
+                    
+        except Select2Error:
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in _handle_select2_options: {e}")
+            raise Select2Error(
+                selector=self.searcher_selector,
+                operation="option_handling",
+                message=f"Unexpected error during Select2 option handling: {str(e)}"
+            ) from e
 
-    async def search_with_filters(self, data_filters: dict) -> None:
+    async def _handle_select2(self, field_input: Locator, value: Union[str, list, dict, set]) -> None:
         """
-        Applies the specified filters and initiates a search by clicking the filter button.
+        Handles interaction with Select2 dropdowns.
 
         Args:
-            data_filters (dict): Dictionary with filter field selectors as keys
-                                and filter criteria as values.
-
-        Example:
-            await search_with_filters({
-                'input[name="genre"]': 'Action',
-                'input[name="year"]': '2023'
-            })
-
+            field_input (Locator): Playwright locator of the Select2 field.
+            value (str | list | set | dict): Value(s) to select. Supports nested dict for complex inputs.
+            
+        Raises:
+            Select2Error: if Select2 operations fail.
+            ElementNotFoundError: if Select2 element is not found.
+            
         Notes:
-            - Relies on `fill_data` to populate fields.
-            - Expects `self.filter_button_selector` to point to the search/submit button.
+            - Uses class attributes for Select2 selectors.
         """
-        await self.fill_data(data_filters)
-        await self.page.click(self.filter_button_selector)
+        try:
+            # Validate that the Select2 field exists and is clickable
+            if not await field_input.is_visible():
+                selector = await field_input.evaluate('el => el.tagName + (el.id ? "#" + el.id : "") + (el.className ? "." + el.className.replace(/ /g, ".") : "")')
+                raise ElementNotFoundError(selector, timeout=5000)
+            
+            await field_input.click()
+
+            if isinstance(value, dict):
+                for selector_to_write, input_values in value.items():
+                    input_values = input_values if isinstance(input_values, list) else [input_values]
+
+                    for input_value in input_values:
+                        if selector_to_write == self.remove_options_selector:
+                            continue
+
+                        try:
+                            await self.page.locator(selector_to_write).fill(input_value)
+                            await self._handle_select2_options(input_value)
+                        except Exception as e:
+                            raise Select2Error(
+                                selector=selector_to_write,
+                                operation="nested_fill",
+                                message=f"Failed to fill nested Select2 field with value '{input_value}': {str(e)}"
+                            ) from e
+
+            elif isinstance(value, (set, list)):
+                for input_value in value:
+                    await self._handle_select2_options(input_value)
+
+            else:
+                await self._handle_select2_options(value)
+                
+        except (Select2Error, ElementNotFoundError):
+            raise
+        except Exception as e:
+            selector = await field_input.evaluate('el => el.tagName + (el.id ? "#" + el.id : "") + (el.className ? "." + el.className.replace(/ /g, ".") : "")')
+            logger.error(f"Unexpected error in _handle_select2: {e}")
+            raise Select2Error(
+                selector=selector,
+                operation="select2_handling",
+                message=f"Unexpected error during Select2 handling: {str(e)}"
+            ) from e
             
     async def edit_item(self, new_data: dict) -> None:
         """
@@ -237,25 +358,21 @@ class BasePage:
         Example:
             await edit_item({
                 'input[name="title"]': 'New Title',
-                'input[name="year"]': '2023',
                 'select[name="genre"]': 'Drama'
             })
 
         Notes:
-            - Clears existing field values before populating new data.
+            - Always clears existing field values before populating new data.
             - Includes a 1-second wait between clearing and filling to ensure proper rendering.
-            - Expects `self.submit_button_selector` to point to the form's submit button.
-            - Assumes all fields are visible and ready to interact with.
         """
+        # Always create empty dict to clear existing form data
         empty_dict = self._create_empty_dict(new_data)
         await self.fill_data(empty_dict)
-
+        
         await self.page.wait_for_timeout(1000)
         await self.fill_data(new_data)
 
-        await self.page.click(self.submit_button_selector)
-
-    def _create_empty_dict(self, original_dict: dict) -> None:
+    def _create_empty_dict(self, original_dict: dict) -> dict:
         """
         Creates a dictionary structure matching the original, but with all values cleared.
 
@@ -265,17 +382,16 @@ class BasePage:
         Returns:
             dict: New dictionary with same keys, but values set to empty strings, empty lists, 
                 or empty dicts recursively for nested structures.
-
+                
         Notes:
-            - Handles nested dictionaries and lists.
-            - For select2 fields, sets the special key to remove existing options.
+            - Uses class attributes for Select2 configuration.
         """
         new_dict = {}
 
         for key, value in original_dict.items():
             if isinstance(value, dict):
-                if self.select2_selector in value:
-                    new_dict[key] = {self.remove_options_select2: ""}
+                if self.select2_indicator in value:
+                    new_dict[key] = {self.remove_options_selector: ""}
                 else:
                     new_dict[key] = self._create_empty_dict(value)
             elif isinstance(value, list):
@@ -284,44 +400,12 @@ class BasePage:
                 new_dict[key] = ''
         return new_dict
 
-    async def delete_item(self) -> None:
-        """
-        Deletes an item by clicking the delete button and confirming the action.
-
-        This method performs the deletion workflow by interacting with the UI elements responsible 
-        for removing an item, including any confirmation dialogs.
-
-        Args:
-            None (relies on `self.delete_button_selector` and `self.confirm_delete_button_selector` 
-            being defined in the page object).
-
-        Behavior:
-            1. Clicks the delete button associated with the item.
-            2. Clicks the confirmation button to finalize deletion.
-
-        Notes:
-            - Assumes that the delete button and confirmation button are visible and interactable.
-            - Designed to work on the page where the item is currently displayed.
-            - If there is a modal after the first click, it will handle it automatically.
-        """
-        # Wait for the delete button to be visible and click it
-        await self.page.click(self.delete_button_selector)
-
-        # If there is a modal after clicking the first button, handle with it
-        confirm_selector = self.page.locator(self.confirm_delete_button_selector)
-        if await confirm_selector.is_visible():
-            await self.page.click(self.confirm_delete_button_selector)
-
-        await self.page.wait_for_load_state("domcontentloaded")
-
-    async def handle_toggle_action(self, action: Literal["enable", "disable"]) -> None:
+    async def handle_toggle_action(self, toggle_selector: str, action: Literal["enable", "disable"]) -> None:
         """
         Enables or disables an item by interacting with a toggle switch.
 
-        This method handles a toggle switch on the page to set the item state according to the
-        specified action.
-
         Args:
+            toggle_selector (str): Selector for the toggle switch element.
             action (Literal["enable", "disable"]): Specifies whether to enable or disable the item.
                 - "enable": checks the toggle switch.
                 - "disable": unchecks the toggle switch.
@@ -332,17 +416,15 @@ class BasePage:
 
         Notes:
             - Assumes that the toggle switch is present and interactable.
-            - Designed to work with the toggle selector defined as `self.toggle_selector`.
-            - Ensure the toggle switch is in the correct initial state if necessary.
         
         Example:
-            await handle_toggle_action("disable")
-            await handle_toggle_action("enable")
+            await handle_toggle_action('input[type="checkbox"]', "disable")
+            await handle_toggle_action('input[type="checkbox"]', "enable")
         """
         if action == "enable":
-            await self.page.check(self.toggle_selector)
+            await self.page.check(toggle_selector)
         if action == "disable":
-            await self.page.uncheck(self.toggle_selector)
+            await self.page.uncheck(toggle_selector)
 
         await self.page.wait_for_load_state("domcontentloaded")
 
@@ -513,63 +595,154 @@ class BasePage:
             elif expected_value:
                 await _validate_text(str(expected_value))
 
-    async def validate_item_toggle(self, validation_type: Literal["enabled", "disabled"]) -> None:
+    async def validate_item_toggle(self, toggle_selector: str, validation_type: Literal["enabled", "disabled"]) -> None:
         """
         Validates whether a toggle (checkbox) is enabled or disabled.
 
         Args:
+            toggle_selector (str): Selector for the toggle element.
             validation_type (str): "enabled" to check if toggle is checked, "disabled" to check if toggle is unchecked.
-
-        Notes:
-            Assumes `self.toggle_selector` points to the toggle element.
         """
 
         if validation_type == "enabled":
-            await expect(self.page.locator(self.toggle_selector)).to_be_checked()
+            await expect(self.page.locator(toggle_selector)).to_be_checked()
         elif validation_type == "disabled":
-            await expect(self.page.locator(self.toggle_selector)).not_to_be_checked()
+            await expect(self.page.locator(toggle_selector)).not_to_be_checked()
 
-    async def check_message(self, message:str) -> None:
+    async def check_message(self, message: str, modal_message_selector: str, 
+                           continue_button_selector: str = None) -> None:
         """
         Verifies that a message appears on the page and clicks the continue button if visible.
 
         Args:
             message (str): The expected message text.
+            modal_message_selector (str): Selector for the element containing the message.
+            continue_button_selector (str, optional): Selector for the continue button.
+
+        Raises:
+            ElementNotFoundError: if message element or continue button is not found.
+            ValidationError: if message text doesn't match expected.
 
         Example:
-            await check_message("Operation completed successfully!")
+            await check_message("Operation completed successfully!", 
+                               ".alert-message", 
+                               "button.continue")
 
         Notes:
-            - Uses `self.modal_message_selector` and `self.continue_button_selector` from the page object.
-            - If the continue button is not visible, only verifies the message.
+            - If continue_button_selector is provided and the button is visible, it will be clicked.
         """
-        await expect(self.page.locator(self.modal_message_selector)).to_contain_text(message)
+        try:
+            # Check if modal message element exists
+            modal_element = self.page.locator(modal_message_selector)
+            if not await modal_element.is_visible():
+                raise ElementNotFoundError(modal_message_selector, timeout=5000)
+            
+            await expect(modal_element).to_contain_text(message)
 
-        #If the modal with the message have a continue button selector, clicks it
-        continue_button = self.page.locator(self.continue_button_selector)
-        if continue_button.is_visible():
-            await self.page.click(self.continue_button_selector)
+            if continue_button_selector:
+                continue_button = self.page.locator(continue_button_selector)
+                if await continue_button.is_visible():
+                    await self.page.click(continue_button_selector)
+                else:
+                    logger.warning(f"Continue button '{continue_button_selector}' not visible, skipping click")
+                    
+        except PlaywrightTimeoutError as e:
+            raise ElementNotFoundError(modal_message_selector, timeout=5000) from e
+        except AssertionError as e:
+            raise ValidationError(
+                field=modal_message_selector,
+                message=f"Expected message '{message}' not found in element"
+            ) from e
+        except Exception as e:
+            logger.error(f"Unexpected error in check_message: {e}")
+            raise ValidationError(
+                field=modal_message_selector,
+                message=f"Unexpected error during message validation: {str(e)}"
+            ) from e
 
     async def is_visible(self, selector: str) -> None:
-        """Verifies that an element is visible on the page."""
-        await expect(self.page.locator(selector)).to_be_visible()
+        """
+        Verifies that an element is visible on the page.
+        
+        Raises:
+            ElementNotFoundError: if element is not found.
+            ValidationError: if element is not visible.
+        """
+        try:
+            element = self.page.locator(selector)
+            await expect(element).to_be_visible()
+        except AssertionError as e:
+            raise ValidationError(field=selector, message="Element is not visible") from e
+        except Exception as e:
+            raise ElementNotFoundError(selector, timeout=5000) from e
 
     async def is_not_visible(self, selector: str) -> None:
-        """Verifies that an element is not visible on the page."""
-        await expect(self.page.locator(selector)).not_to_be_visible()
+        """
+        Verifies that an element is not visible on the page.
+        
+        Raises:
+            ValidationError: if element is unexpectedly visible.
+        """
+        try:
+            element = self.page.locator(selector)
+            await expect(element).not_to_be_visible()
+        except AssertionError as e:
+            raise ValidationError(field=selector, message="Element is unexpectedly visible") from e
 
     async def is_checked(self, selector: str) -> None:
-        """Verifies that a checkbox or radio button is checked."""
-        await expect(self.page.locator(selector)).to_be_checked()
+        """
+        Verifies that a checkbox or radio button is checked.
+        
+        Raises:
+            ElementNotFoundError: if element is not found.
+            ValidationError: if element is not checked.
+        """
+        try:
+            element = self.page.locator(selector)
+            await expect(element).to_be_checked()
+        except AssertionError as e:
+            raise ValidationError(field=selector, message="Element is not checked") from e
+        except Exception as e:
+            raise ElementNotFoundError(selector, timeout=5000) from e
 
     async def have_value(self, selector: str, value: str) -> None:
-        """Verifies that an input element has the expected value."""
-        await expect(self.page.locator(selector)).to_have_value(value)
+        """
+        Verifies that an input element has the expected value.
+        
+        Raises:
+            ElementNotFoundError: if element is not found.
+            ValidationError: if element value doesn't match expected.
+        """
+        try:
+            element = self.page.locator(selector)
+            await expect(element).to_have_value(value)
+        except AssertionError as e:
+            actual_value = await element.input_value()
+            raise ValidationError(
+                field=selector, 
+                message=f"Expected value '{value}', but got '{actual_value}'"
+            ) from e
+        except Exception as e:
+            raise ElementNotFoundError(selector, timeout=5000) from e
 
-    async def wait_for_selector(self, selector: str, time_sleep: float = 0.05) -> None:
-        """Waits for an element to appear on the page."""
-        await self.page.wait_for_selector(selector)
-        await asyncio.sleep(time_sleep)
+    async def wait_for_selector(self, selector: str, time_sleep: float = 0.05, timeout: int = 30000) -> None:
+        """
+        Waits for an element to appear on the page.
+        
+        Args:
+            selector (str): Element selector to wait for.
+            time_sleep (float): Additional sleep time after element appears.
+            timeout (int): Timeout in milliseconds.
+            
+        Raises:
+            ElementNotFoundError: if element is not found within timeout.
+        """
+        try:
+            await self.page.wait_for_selector(selector, timeout=timeout)
+            await asyncio.sleep(time_sleep)
+        except PlaywrightTimeoutError as e:
+            logger.error(f"Element not found: {selector}")
+            raise ElementNotFoundError(selector, timeout=timeout) from e
 
     async def is_hidden(self, selector: str) -> None:
         """Verifies that an element is hidden on the page."""
@@ -630,41 +803,6 @@ class BasePage:
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.setAttribute('type', 'text')")
 
-    async def get_selected_index(self, select_selector: str) -> int:
-        """
-        Gets the index of the currently selected option in a <select> element.
-
-        Args:
-            select_selector (str): Selector of the <select> element.
-
-        Returns:
-            int: Index of the selected option.
-        """
-        selected_value = await self.page.locator(select_selector).input_value()
-        options = await self.page.locator(f'{select_selector} option').all()
-
-        for index, option in enumerate(options):
-            option_value = await option.get_attribute('value')
-            if option_value == selected_value:
-                return index
-
-    async def hold_click(self, locator: Locator) -> None:
-        """
-        Simulates a click-and-hold action on the specified element, useful for drag-and-drop.
-
-        Args:
-            locator (Locator): Playwright locator of the element to click and hold.
-        """
-        bounding_box = await locator.bounding_box()
-        await self.page.wait_for_timeout(3000)
-        await self.page.mouse.move(
-            bounding_box['x'] + bounding_box['width'] / 2,
-            bounding_box['y'] + bounding_box['height'] / 2
-        )
-        await self.page.mouse.down()
-        await self.page.wait_for_timeout(500)
-        await self.page.mouse.up()
-
     async def get_text(self, selector: str) -> str:
         """
         Returns the text content of the specified element.
@@ -675,12 +813,27 @@ class BasePage:
         Returns:
             str: Text content of the element.
 
+        Raises:
+            ElementNotFoundError: if element is not found or not visible.
+
         Notes:
             - Waits for the element to be visible before retrieving the text.
         """
-        await self.page.wait_for_selector(selector)
-        element = self.page.locator(selector)
-        return await element.inner_text()
+        try:
+            await self.wait_for_selector(selector)
+            element = self.page.locator(selector)
+            
+            if not await element.is_visible():
+                raise ElementNotFoundError(selector, timeout=5000)
+                
+            return await element.inner_text()
+        except PlaywrightTimeoutError as e:
+            raise ElementNotFoundError(selector, timeout=30000) from e
+        except Exception as e:
+            if not isinstance(e, ElementNotFoundError):
+                logger.error(f"Unexpected error getting text from '{selector}': {e}")
+                raise ElementNotFoundError(selector, timeout=5000) from e
+            raise
 
     async def scroll_into_view(self, selector: str) -> None:
         """
@@ -689,12 +842,65 @@ class BasePage:
         Args:
             selector (str): Selector of the element to scroll into view.
 
+        Raises:
+            ElementNotFoundError: if element is not found.
+
         Notes:
             - Ensures the element is visible in the viewport for interactions.
         """
-        await self.page.wait_for_selector(selector)
-        element = self.page.locator(selector)
-        await element.scroll_into_view_if_needed()
+        try:
+            await self.wait_for_selector(selector)
+            element = self.page.locator(selector)
+            await element.scroll_into_view_if_needed()
+        except Exception as e:
+            if not isinstance(e, ElementNotFoundError):
+                logger.error(f"Error scrolling element '{selector}' into view: {e}")
+                raise ElementNotFoundError(selector, timeout=5000) from e
+            raise
+
+    async def execute_with_database_error_handling(self, operation_name: str, operation_func, *args, **kwargs):
+        """
+        Executes a database operation with proper error handling.
+        
+        Args:
+            operation_name (str): Name of the database operation for error reporting.
+            operation_func: Function to execute.
+            *args: Arguments to pass to the function.
+            **kwargs: Keyword arguments to pass to the function.
+            
+        Raises:
+            DatabaseError: if database operation fails.
+            
+        Returns:
+            Result of the operation function.
+        """
+        try:
+            return await operation_func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Database operation '{operation_name}' failed: {e}")
+            raise DatabaseError(operation=operation_name, message=str(e)) from e
+
+    async def execute_with_redis_error_handling(self, operation_name: str, operation_func, *args, **kwargs):
+        """
+        Executes a Redis operation with proper error handling.
+        
+        Args:
+            operation_name (str): Name of the Redis operation for error reporting.
+            operation_func: Function to execute.
+            *args: Arguments to pass to the function.
+            **kwargs: Keyword arguments to pass to the function.
+            
+        Raises:
+            RedisError: if Redis operation fails.
+            
+        Returns:
+            Result of the operation function.
+        """
+        try:
+            return await operation_func(*args, **kwargs)
+        except Exception as e:
+            logger.error(f"Redis operation '{operation_name}' failed: {e}")
+            raise RedisError(operation=operation_name, message=str(e)) from e
 
     async def take_screenshot(self, name: str = None) -> str:
         """
@@ -728,15 +934,22 @@ class BasePage:
 
         Args:
             timeout (int): Timeout in milliseconds (default: 30000).
+            
+        Raises:
+            ElementNotFoundError: if page doesn't load within timeout.
         """
         try:
             await self.page.wait_for_load_state("networkidle", timeout=timeout)
             await self.page.wait_for_load_state("domcontentloaded", timeout=timeout)
             logger.info("Page loaded successfully")
-        except Exception as e:
+        except PlaywrightTimeoutError as e:
             logger.error(f"Page load timeout: {e}")
             await self.take_screenshot("page_load_timeout")
-            raise
+            raise ElementNotFoundError("page", timeout=timeout) from e
+        except Exception as e:
+            logger.error(f"Unexpected page load error: {e}")
+            await self.take_screenshot("page_load_error")
+            raise ElementNotFoundError("page", timeout=timeout) from e
 
     async def highlight_element(self, selector: str, duration: int = 2000) -> None:
         """
@@ -756,4 +969,88 @@ class BasePage:
                 }, duration);
             }""",
             duration
-        )
+        ) 
+
+    async def double_click(self, selector: str, timeout: int = 30000) -> None:
+        """Double-clicks an element."""
+        try:
+            await self.page.locator(selector).dblclick()
+        except PlaywrightTimeoutError as e:
+            raise ElementNotFoundError(selector, timeout=timeout) from e
+
+    async def right_click(self, selector: str, timeout: int = 30000) -> None:
+        """Right-clicks an element to open context menu."""
+        try:
+            await self.page.locator(selector).click(button="right")
+        except PlaywrightTimeoutError as e:
+            raise ElementNotFoundError(selector, timeout=timeout) from e
+
+    async def hover(self, selector: str, timeout: int = 30000) -> None:
+        """Hovers over an element."""
+        try:
+            await self.page.locator(selector).hover()
+        except PlaywrightTimeoutError as e:
+            raise ElementNotFoundError(selector, timeout=timeout) from e
+
+    async def drag_and_drop(self, source_selector: str, target_selector: str) -> None:
+        """Drags element from source to target."""
+        try:
+            source = self.page.locator(source_selector)
+            target = self.page.locator(target_selector)
+            await source.drag_to(target)
+        except Exception as e:
+            logger.error(f"Drag and drop failed: {e}")
+            raise ValidationError(
+                field=f"{source_selector} -> {target_selector}",
+                message=f"Drag and drop operation failed: {str(e)}"
+            ) from e
+        
+    async def switch_to_new_tab(self) -> None:
+        """Switches to the newest opened tab."""
+        try:
+            # Wait for new page to open
+            async with self.page.context.expect_page() as new_page_info:
+                pass
+            new_page = await new_page_info.value
+            await new_page.wait_for_load_state()
+            self.page = new_page
+        except Exception as e:
+            logger.error(f"Failed to switch to new tab: {e}")
+            raise ValidationError("tab_switch", f"Tab switch failed: {str(e)}") from e
+
+    async def close_current_tab(self) -> None:
+        """Closes current tab and switches to previous one."""
+        try:
+            context = self.page.context
+            pages = context.pages
+            if len(pages) > 1:
+                await self.page.close()
+                self.page = pages[-2]  # Switch to previous tab
+            else:
+                logger.warning("Cannot close last remaining tab")
+        except Exception as e:
+            raise ValidationError("tab_close", f"Failed to close tab: {str(e)}") from e
+
+    async def refresh_page(self) -> None:
+        """Refreshes the current page."""
+        try:
+            await self.page.reload()
+            await self.wait_for_page_load()
+        except Exception as e:
+            raise ValidationError("page_refresh", f"Page refresh failed: {str(e)}") from e
+
+    async def go_back(self) -> None:
+        """Navigates back in browser history."""
+        try:
+            await self.page.go_back()
+            await self.wait_for_page_load()
+        except Exception as e:
+            raise ValidationError("navigation_back", f"Back navigation failed: {str(e)}") from e
+
+    async def go_forward(self) -> None:
+        """Navigates forward in browser history."""
+        try:
+            await self.page.go_forward()
+            await self.wait_for_page_load()
+        except Exception as e:
+            raise ValidationError("navigation_forward", f"Forward navigation failed: {str(e)}") from e
