@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from playwright.async_api import Page, expect, Locator, TimeoutError as PlaywrightTimeoutError
 from typing import Literal, Union
 from utils.exceptions import (
@@ -1054,3 +1055,230 @@ class BasePage:
             await self.wait_for_page_load()
         except Exception as e:
             raise ValidationError("navigation_forward", f"Forward navigation failed: {str(e)}") from e
+
+    # ========== Advanced Modal/Dialog Handling ==========
+    
+    async def handle_confirmation_dialog(self, trigger_action, accept: bool = True, dialog_text: str = None) -> str:
+        """
+        Handles JavaScript confirmation dialogs (alert, confirm, prompt).
+        
+        Args:
+            trigger_action: Function/coroutine that triggers the dialog
+            accept (bool): Whether to accept (OK) or dismiss (Cancel) the dialog
+            dialog_text (str, optional): Expected dialog text for validation
+            
+        Returns:
+            str: The actual dialog message text
+            
+        Example:
+            message = await page.handle_confirmation_dialog(
+                lambda: page.click('#delete-button'),
+                accept=True,
+                dialog_text="Are you sure you want to delete?"
+            )
+        """
+        dialog_message = None
+        
+        async def dialog_handler(dialog):
+            nonlocal dialog_message
+            dialog_message = dialog.message
+            
+            if dialog_text and dialog_text not in dialog_message:
+                raise ValidationError("dialog_validation", 
+                                    f"Expected dialog text '{dialog_text}' but got '{dialog_message}'")
+            
+            if accept:
+                await dialog.accept()
+            else:
+                await dialog.dismiss()
+        
+        self.page.on("dialog", dialog_handler)
+        
+        try:
+            if asyncio.iscoroutinefunction(trigger_action):
+                await trigger_action()
+            else:
+                await trigger_action()
+        finally:
+            self.page.remove_listener("dialog", dialog_handler)
+        
+        return dialog_message or ""
+
+    async def close_modal_by_escape(self, modal_selector: str) -> None:
+        """
+        Closes a modal by pressing the Escape key.
+        """
+        await self.page.keyboard.press('Escape')
+        await self.page.wait_for_selector(modal_selector, state='hidden', timeout=5000)
+
+    # ========== Smart File Upload Handling ==========
+    
+    async def upload_files_with_preview_validation(self, file_input_selector: str, file_paths: list, 
+                                                 preview_selector: str) -> None:
+        """
+        Uploads files and optionally validates preview elements.
+        
+        Args:
+            file_input_selector (str): CSS selector for the file input
+            file_paths (list): List of absolute file paths to upload
+            preview_selector (str, optional): Selector for file preview elements
+            
+        Example:
+            await page.upload_files_with_preview_validation(
+                'input[type="file"]',
+                ['/path/to/image1.jpg', '/path/to/document.pdf'],
+                '.file-preview'
+            )
+        """
+        # Ensure all files exist
+        import os
+        for file_path in file_paths:
+            if not os.path.exists(file_path):
+                raise ValidationError("file_upload", f"File not found: {file_path}")
+        
+        await self.wait_for_selector(file_input_selector)
+        await self.page.set_input_files(file_input_selector, file_paths)
+        
+        # Wait for upload processing
+        await self.page.wait_for_timeout(1000)
+        
+        # Validate previews if selector provided
+        await self.page.wait_for_selector(preview_selector, timeout=10000)
+        preview_count = await self.page.locator(preview_selector).count()
+        
+        if preview_count != len(file_paths):
+            raise ValidationError("file_preview", 
+                                f"Expected {len(file_paths)} previews, found {preview_count}")
+
+    async def handle_drag_and_drop_upload(self, drop_zone_selector: str, file_paths: list) -> None:
+        """
+        Handles drag-and-drop file uploads.
+        
+        Args:
+            drop_zone_selector (str): CSS selector for the drop zone
+            file_paths (list): List of file paths to upload
+            
+        Example:
+            await page.handle_drag_and_drop_upload('#dropzone', ['/path/to/file.pdf'])
+        """
+        await self.wait_for_selector(drop_zone_selector)
+        
+        # Validate all files exist first
+        for file_path in file_paths:
+            if not os.path.exists(file_path):
+                raise ValidationError("file_upload", f"File not found: {file_path}")
+        
+        # Look for a hidden file input within the drop zone (more direct approach)
+        hidden_input_selector = f'{drop_zone_selector} input[type="file"]'
+        hidden_input = self.page.locator(hidden_input_selector).first
+        
+        if await hidden_input.count() > 0:
+            await hidden_input.set_input_files(file_paths)
+        else:
+            # If no hidden input, simulate drag-drop on the drop zone directly
+            drop_zone_element = self.page.locator(drop_zone_selector)
+            await drop_zone_element.evaluate("""
+                (element, files) => {
+                    const dt = new DataTransfer();
+                    files.forEach(file => {
+                        const fileObj = new File([''], file.split('/').pop(), {type: 'application/octet-stream'});
+                        dt.items.add(fileObj);
+                    });
+                    
+                    const event = new DragEvent('drop', {
+                        bubbles: true,
+                        cancelable: true,
+                        dataTransfer: dt
+                    });
+                    
+                    element.dispatchEvent(event);
+                }
+            """, file_paths)
+
+    # ========== Multi-Tab/Window Management ==========
+    
+    async def open_link_in_new_tab(self, link_selector: str) -> Page:
+        """
+        Opens a link in a new tab and returns the new page object.
+        
+        Args:
+            link_selector (str): selector for the link
+            
+        Returns:
+            Page: New page object for the opened tab
+            
+        Example:
+            new_page = await page.open_link_in_new_tab('a[href="/reports"]')
+        """
+        # Listen for new page
+        async with self.page.context.expect_page() as new_page_info:
+            # Right-click and open in new tab, or use Ctrl+Click
+            await self.page.click(link_selector, modifiers=['Meta'])
+        
+        new_page = await new_page_info.value
+        await new_page.wait_for_load_state('networkidle')
+        return new_page
+
+    async def switch_to_tab_by_title(self, title_pattern: str) -> Page:
+        """
+        Switches to a tab based on its title pattern.
+        
+        Args:
+            title_pattern (str): Pattern to match in the tab title
+            
+        Returns:
+            Page: The page object of the matching tab
+            
+        Example:
+            target_page = await page.switch_to_tab_by_title('Dashboard')
+        """
+        pages = self.page.context.pages
+        
+        for page in pages:
+            page_title = await page.title()
+            if title_pattern.lower() in page_title.lower():
+                await page.bring_to_front()
+                return page
+        
+        raise ElementNotFoundError(f"Tab with title containing '{title_pattern}'", timeout=5000)
+
+    async def close_other_tabs_except_current(self) -> None:
+        """
+        Closes all tabs except the current one.
+        
+        Example:
+            await page.close_other_tabs_except_current()
+        """
+        current_page = self.page
+        pages = self.page.context.pages
+        
+        for page in pages:
+            if page != current_page:
+                await page.close()
+
+    async def wait_for_new_tab_and_switch(self, trigger_action, timeout: int = 10000) -> Page:
+        """
+        Waits for a new tab to open after performing an action and switches to it.
+        
+        Args:
+            trigger_action: Function/coroutine that triggers the new tab
+            timeout (int): Timeout in milliseconds
+            
+        Returns:
+            Page: New page object
+            
+        Example:
+            new_page = await page.wait_for_new_tab_and_switch(
+                lambda: page.click('#open-report-button')
+            )
+        """
+        async with self.page.context.expect_page(timeout=timeout) as new_page_info:
+            if asyncio.iscoroutinefunction(trigger_action):
+                await trigger_action()
+            else:
+                await trigger_action()
+        
+        new_page = await new_page_info.value
+        await new_page.wait_for_load_state('networkidle')
+        await new_page.bring_to_front()
+        return new_page
