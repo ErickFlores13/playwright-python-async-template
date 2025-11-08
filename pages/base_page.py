@@ -8,8 +8,6 @@ from utils.exceptions import (
     Select2Error, 
     ValidationError,
     ConfigurationError,
-    DatabaseError,
-    RedisError
 )
 
 logger = logging.getLogger(__name__)
@@ -61,6 +59,10 @@ class BasePage:
                     config_key="select2_indicator",
                     message="Select2 select2_indicator must be a non-empty string"
                 )
+
+    # ============================================================================
+    # FORM FILLING & DATA INPUT
+    # ============================================================================
 
     async def fill_data(self, data: dict) -> None:
         """
@@ -347,6 +349,10 @@ class BasePage:
                 operation="select2_handling",
                 message=f"Unexpected error during Select2 handling: {str(e)}"
             ) from e
+    
+    # ============================================================================
+    # FORM EDITING & UPDATES
+    # ============================================================================
             
     async def edit_item(self, new_data: dict) -> None:
         """
@@ -401,6 +407,10 @@ class BasePage:
                 new_dict[key] = ''
         return new_dict
 
+    # ============================================================================
+    # TOGGLE & SWITCH HANDLING
+    # ============================================================================
+
     async def handle_toggle_action(self, toggle_selector: str, action: Literal["enable", "disable"]) -> None:
         """
         Enables or disables an item by interacting with a toggle switch.
@@ -428,6 +438,10 @@ class BasePage:
             await self.page.uncheck(toggle_selector)
 
         await self.page.wait_for_load_state("domcontentloaded")
+
+    # ============================================================================
+    # DATA VALIDATION & ASSERTIONS
+    # ============================================================================
 
     async def validate_edit_view_item_information(self, data_validate: dict) -> None:
         """
@@ -661,6 +675,10 @@ class BasePage:
                 message=f"Unexpected error during message validation: {str(e)}"
             ) from e
 
+    # ============================================================================
+    # ELEMENT STATE CHECKING & EXPECTATIONS
+    # ============================================================================
+
     async def is_visible(self, selector: str) -> None:
         """
         Verifies that an element is visible on the page.
@@ -748,6 +766,10 @@ class BasePage:
     async def is_hidden(self, selector: str) -> None:
         """Verifies that an element is hidden on the page."""
         await expect(self.page.locator(selector)).to_be_hidden()   
+
+    # ============================================================================
+    # ATTRIBUTE MANIPULATION
+    # ============================================================================
                 
     async def remove_required_attribute(self, selector: str) -> None:
         """Removes the 'required' attribute from the specified element."""
@@ -804,6 +826,10 @@ class BasePage:
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.setAttribute('type', 'text')")
 
+    # ============================================================================
+    # TEXT & CONTENT EXTRACTION
+    # ============================================================================
+
     async def get_text(self, selector: str) -> str:
         """
         Returns the text content of the specified element.
@@ -836,6 +862,10 @@ class BasePage:
                 raise ElementNotFoundError(selector, timeout=5000) from e
             raise
 
+    # ============================================================================
+    # SCROLLING & VIEWPORT MANIPULATION
+    # ============================================================================
+
     async def scroll_into_view(self, selector: str) -> None:
         """
         Scrolls the specified element into view.
@@ -859,49 +889,10 @@ class BasePage:
                 raise ElementNotFoundError(selector, timeout=5000) from e
             raise
 
-    async def execute_with_database_error_handling(self, operation_name: str, operation_func, *args, **kwargs):
-        """
-        Executes a database operation with proper error handling.
-        
-        Args:
-            operation_name (str): Name of the database operation for error reporting.
-            operation_func: Function to execute.
-            *args: Arguments to pass to the function.
-            **kwargs: Keyword arguments to pass to the function.
-            
-        Raises:
-            DatabaseError: if database operation fails.
-            
-        Returns:
-            Result of the operation function.
-        """
-        try:
-            return await operation_func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Database operation '{operation_name}' failed: {e}")
-            raise DatabaseError(operation=operation_name, message=str(e)) from e
 
-    async def execute_with_redis_error_handling(self, operation_name: str, operation_func, *args, **kwargs):
-        """
-        Executes a Redis operation with proper error handling.
-        
-        Args:
-            operation_name (str): Name of the Redis operation for error reporting.
-            operation_func: Function to execute.
-            *args: Arguments to pass to the function.
-            **kwargs: Keyword arguments to pass to the function.
-            
-        Raises:
-            RedisError: if Redis operation fails.
-            
-        Returns:
-            Result of the operation function.
-        """
-        try:
-            return await operation_func(*args, **kwargs)
-        except Exception as e:
-            logger.error(f"Redis operation '{operation_name}' failed: {e}")
-            raise RedisError(operation=operation_name, message=str(e)) from e
+    # ============================================================================
+    # SCREENSHOTS & VISUAL DEBUGGING
+    # ============================================================================
 
     async def take_screenshot(self, name: str = None) -> str:
         """
@@ -929,6 +920,30 @@ class BasePage:
         logger.info(f"Screenshot saved: {screenshot_path}")
         return screenshot_path
 
+    async def highlight_element(self, selector: str, duration: int = 2000) -> None:
+        """
+        Highlights an element by adding a colored border (useful for debugging).
+
+        Args:
+            selector (str): Selector of the element to highlight.
+            duration (int): Duration to keep the highlight in milliseconds.
+        """
+        await self.page.locator(selector).evaluate(
+            """(element, duration) => {
+                element.style.border = '3px solid red';
+                element.style.backgroundColor = 'yellow';
+                setTimeout(() => {
+                    element.style.border = '';
+                    element.style.backgroundColor = '';
+                }, duration);
+            }""",
+            duration
+        )
+
+    # ============================================================================
+    # WAITS & TIMEOUTS
+    # ============================================================================
+
     async def wait_for_page_load(self, timeout: int = 30000) -> None:
         """
         Waits for the page to fully load including network requests.
@@ -952,25 +967,9 @@ class BasePage:
             await self.take_screenshot("page_load_error")
             raise ElementNotFoundError("page", timeout=timeout) from e
 
-    async def highlight_element(self, selector: str, duration: int = 2000) -> None:
-        """
-        Highlights an element by adding a colored border (useful for debugging).
-
-        Args:
-            selector (str): Selector of the element to highlight.
-            duration (int): Duration to keep the highlight in milliseconds.
-        """
-        await self.page.locator(selector).evaluate(
-            """(element, duration) => {
-                element.style.border = '3px solid red';
-                element.style.backgroundColor = 'yellow';
-                setTimeout(() => {
-                    element.style.border = '';
-                    element.style.backgroundColor = '';
-                }, duration);
-            }""",
-            duration
-        ) 
+    # ============================================================================
+    # MOUSE INTERACTIONS & CLICKS
+    # ============================================================================
 
     async def double_click(self, selector: str, timeout: int = 30000) -> None:
         """Double-clicks an element."""
@@ -1005,6 +1004,10 @@ class BasePage:
                 field=f"{source_selector} -> {target_selector}",
                 message=f"Drag and drop operation failed: {str(e)}"
             ) from e
+
+    # ============================================================================
+    # TAB & WINDOW MANAGEMENT
+    # ============================================================================
         
     async def switch_to_new_tab(self) -> None:
         """Switches to the newest opened tab."""
@@ -1032,6 +1035,10 @@ class BasePage:
         except Exception as e:
             raise ValidationError("tab_close", f"Failed to close tab: {str(e)}") from e
 
+    # ============================================================================
+    # PAGE NAVIGATION
+    # ============================================================================
+
     async def refresh_page(self) -> None:
         """Refreshes the current page."""
         try:
@@ -1056,7 +1063,9 @@ class BasePage:
         except Exception as e:
             raise ValidationError("navigation_forward", f"Forward navigation failed: {str(e)}") from e
 
-    # ========== Advanced Modal/Dialog Handling ==========
+    # ============================================================================
+    # MODAL & DIALOG HANDLING
+    # ============================================================================
     
     async def handle_confirmation_dialog(self, trigger_action, accept: bool = True, dialog_text: str = None) -> str:
         """
@@ -1111,7 +1120,9 @@ class BasePage:
         await self.page.keyboard.press('Escape')
         await self.page.wait_for_selector(modal_selector, state='hidden', timeout=5000)
 
-    # ========== Smart File Upload Handling ==========
+    # ============================================================================
+    # FILE UPLOAD HANDLING
+    # ============================================================================
     
     async def upload_files_with_preview_validation(self, file_input_selector: str, file_paths: list, 
                                                  preview_selector: str) -> None:
@@ -1282,3 +1293,319 @@ class BasePage:
         await new_page.wait_for_load_state('networkidle')
         await new_page.bring_to_front()
         return new_page
+
+    # ============================================================================
+    # FILE DOWNLOAD & VERIFICATION
+    # ============================================================================
+
+    async def download_file(self, download_trigger_selector: str, expected_filename: str = None) -> str:
+        """
+        Triggers a file download and waits for it to complete.
+        
+        Args:
+            download_trigger_selector (str): Selector for the download button/link.
+            expected_filename (str, optional): Expected filename pattern to validate.
+            
+        Returns:
+            str: Path to the downloaded file.
+            
+        Raises:
+            ValidationError: if download fails or filename doesn't match.
+            
+        Example:
+            file_path = await self.download_file('button#download', 'report.pdf')
+            # File is saved and path is returned
+        """
+        try:
+            async with self.page.expect_download() as download_info:
+                await self.page.click(download_trigger_selector)
+            
+            download = await download_info.value
+            
+            # Validate filename if provided
+            if expected_filename and expected_filename not in download.suggested_filename:
+                raise ValidationError(
+                    field=download_trigger_selector,
+                    message=f"Downloaded file '{download.suggested_filename}' does not match expected '{expected_filename}'"
+                )
+            
+            # Save to temp location
+            file_path = os.path.join(os.getcwd(), 'downloads', download.suggested_filename)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            await download.save_as(file_path)
+            
+            logger.info(f"File downloaded successfully: {file_path}")
+            return file_path
+            
+        except PlaywrightTimeoutError as e:
+            raise ValidationError(
+                field=download_trigger_selector,
+                message="Download did not start within timeout"
+            ) from e
+
+    async def verify_file_downloaded(self, file_path: str, min_size_bytes: int = 0) -> bool:
+        """
+        Verifies that a file exists and optionally checks its size.
+        
+        Args:
+            file_path (str): Path to the downloaded file.
+            min_size_bytes (int): Minimum expected file size in bytes.
+            
+        Returns:
+            bool: True if file exists and meets size requirement.
+            
+        Raises:
+            ValidationError: if file doesn't exist or is too small.
+        """
+        if not os.path.exists(file_path):
+            raise ValidationError(
+                field=file_path,
+                message=f"Downloaded file does not exist: {file_path}"
+            )
+        
+        file_size = os.path.getsize(file_path)
+        
+        if file_size < min_size_bytes:
+            raise ValidationError(
+                field=file_path,
+                message=f"File size {file_size} bytes is less than minimum {min_size_bytes} bytes"
+            )
+        
+        logger.info(f"File verified: {file_path} ({file_size} bytes)")
+        return True
+
+    async def download_and_verify_file(
+        self, 
+        download_trigger_selector: str, 
+        expected_filename: str = None,
+        min_size_bytes: int = 0,
+        cleanup: bool = True
+    ) -> str:
+        """
+        Complete workflow: download file, verify it, and optionally clean up.
+        
+        Args:
+            download_trigger_selector (str): Selector for download trigger.
+            expected_filename (str, optional): Expected filename pattern.
+            min_size_bytes (int): Minimum file size in bytes.
+            cleanup (bool): Whether to delete file after verification.
+            
+        Returns:
+            str: Path to downloaded file (if cleanup=False).
+            
+        Example:
+            await self.download_and_verify_file(
+                'a#export-csv',
+                expected_filename='data.csv',
+                min_size_bytes=100
+            )
+        """
+        file_path = await self.download_file(download_trigger_selector, expected_filename)
+        await self.verify_file_downloaded(file_path, min_size_bytes)
+        
+        if cleanup:
+            os.remove(file_path)
+            logger.info(f"Cleaned up downloaded file: {file_path}")
+            return None
+        
+        return file_path
+
+    # ============================================================================
+    # COOKIE & STORAGE MANAGEMENT
+    # ============================================================================
+
+    async def set_cookie(
+            self, 
+            name: str, 
+            value: str, 
+            domain: str = None, 
+            path: str = '/') -> None:
+        """
+        Sets a cookie in the browser context.
+        
+        Args:
+            name (str): Cookie name.
+            value (str): Cookie value.
+            domain (str, optional): Cookie domain (defaults to current domain).
+            path (str): Cookie path (default: '/').
+            
+        Example:
+            await self.set_cookie('session_id', 'abc123')
+        """
+        if domain is None:
+            domain = await self.page.evaluate('() => window.location.hostname')
+        
+        await self.page.context.add_cookies([{
+            'name': name,
+            'value': value,
+            'domain': domain,
+            'path': path
+        }])
+        logger.info(f"Cookie set: {name}={value}")
+
+    async def get_cookie(self, name: str) -> dict:
+        """
+        Retrieves a specific cookie by name.
+        
+        Args:
+            name (str): Cookie name.
+            
+        Returns:
+            dict: Cookie object with name, value, domain, path, etc.
+            
+        Raises:
+            ValidationError: if cookie not found.
+        """
+        cookies = await self.page.context.cookies()
+        
+        for cookie in cookies:
+            if cookie['name'] == name:
+                return cookie
+        
+        raise ValidationError(
+            field=name,
+            message=f"Cookie '{name}' not found"
+        )
+
+    async def get_all_cookies(self) -> list:
+        """
+        Retrieves all cookies for the current context.
+        
+        Returns:
+            list: List of cookie dictionaries.
+        """
+        return await self.page.context.cookies()
+
+    async def delete_cookie(self, name: str) -> None:
+        """
+        Deletes a specific cookie by name.
+        
+        Args:
+            name (str): Cookie name to delete.
+        """
+        cookies = await self.page.context.cookies()
+        filtered_cookies = [c for c in cookies if c['name'] != name]
+        
+        await self.page.context.clear_cookies()
+        await self.page.context.add_cookies(filtered_cookies)
+        logger.info(f"Cookie deleted: {name}")
+
+    async def clear_all_cookies(self) -> None:
+        """
+        Clears all cookies from the browser context.
+        """
+        await self.page.context.clear_cookies()
+        logger.info("All cookies cleared")
+
+    async def set_local_storage(self, key: str, value: str) -> None:
+        """
+        Sets a value in localStorage.
+        
+        Args:
+            key (str): localStorage key.
+            value (str): Value to store (will be converted to string).
+            
+        Example:
+            await self.set_local_storage('user_preference', 'dark_mode')
+        """
+        await self.page.evaluate(
+            f"() => window.localStorage.setItem('{key}', '{value}')"
+        )
+        logger.info(f"localStorage set: {key}={value}")
+
+    async def get_local_storage(self, key: str) -> str:
+        """
+        Retrieves a value from localStorage.
+        
+        Args:
+            key (str): localStorage key.
+            
+        Returns:
+            str: Value from localStorage (or None if not found).
+        """
+        value = await self.page.evaluate(
+            f"() => window.localStorage.getItem('{key}')"
+        )
+        return value
+
+    async def get_all_local_storage(self) -> dict:
+        """
+        Retrieves all localStorage items.
+        
+        Returns:
+            dict: Dictionary of all localStorage key-value pairs.
+        """
+        return await self.page.evaluate(
+            """() => {
+                let items = {};
+                for (let i = 0; i < localStorage.length; i++) {
+                    let key = localStorage.key(i);
+                    items[key] = localStorage.getItem(key);
+                }
+                return items;
+            }"""
+        )
+
+    async def remove_local_storage(self, key: str) -> None:
+        """
+        Removes a specific item from localStorage.
+        
+        Args:
+            key (str): localStorage key to remove.
+        """
+        await self.page.evaluate(
+            f"() => window.localStorage.removeItem('{key}')"
+        )
+        logger.info(f"localStorage removed: {key}")
+
+    async def clear_local_storage(self) -> None:
+        """
+        Clears all localStorage items.
+        """
+        await self.page.evaluate("() => window.localStorage.clear()")
+        logger.info("localStorage cleared")
+
+    async def set_session_storage(self, key: str, value: str) -> None:
+        """
+        Sets a value in sessionStorage.
+        
+        Args:
+            key (str): sessionStorage key.
+            value (str): Value to store.
+        """
+        await self.page.evaluate(
+            f"() => window.sessionStorage.setItem('{key}', '{value}')"
+        )
+        logger.info(f"sessionStorage set: {key}={value}")
+
+    async def get_session_storage(self, key: str) -> str:
+        """
+        Retrieves a value from sessionStorage.
+        
+        Args:
+            key (str): sessionStorage key.
+            
+        Returns:
+            str: Value from sessionStorage (or None if not found).
+        """
+        value = await self.page.evaluate(
+            f"() => window.sessionStorage.getItem('{key}')"
+        )
+        return value
+
+    async def clear_session_storage(self) -> None:
+        """
+        Clears all sessionStorage items.
+        """
+        await self.page.evaluate("() => window.sessionStorage.clear()")
+        logger.info("sessionStorage cleared")
+
+    async def clear_all_storage(self) -> None:
+        """
+        Clears cookies, localStorage, and sessionStorage.
+        Useful for resetting browser state between tests.
+        """
+        await self.clear_all_cookies()
+        await self.clear_local_storage()
+        await self.clear_session_storage()
+        logger.info("All storage cleared (cookies, localStorage, sessionStorage)")
