@@ -764,7 +764,15 @@ class BasePage:
             raise ElementNotFoundError(selector, timeout=timeout) from e
 
     async def is_hidden(self, selector: str) -> None:
-        """Verifies that an element is hidden on the page."""
+        """
+        Verifies that an element is hidden on the page.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Raises:
+            ValidationError: If element is unexpectedly visible.
+        """
         await expect(self.page.locator(selector)).to_be_hidden()   
 
     # ============================================================================
@@ -772,47 +780,119 @@ class BasePage:
     # ============================================================================
                 
     async def remove_required_attribute(self, selector: str) -> None:
-        """Removes the 'required' attribute from the specified element."""
+        """
+        Removes the 'required' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Note:
+            Useful for testing form validation by bypassing required field checks.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('required')")
 
     async def remove_max_length_attribute(self, selector: str) -> None:
-        """Removes the 'maxlength' attribute from the specified element."""
+        """
+        Removes the 'maxlength' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Note:
+            Useful for testing input validation beyond character limits.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('maxlength')")
 
     async def remove_min_length_attribute(self, selector: str) -> None:
-        """Removes the 'minlength' attribute from the specified element."""
+        """
+        Removes the 'minlength' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Note:
+            Useful for testing minimum length validation.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('minlength')")
 
     async def remove_max_attribute(self, selector: str) -> None:
-        """Removes the 'max' attribute from the specified element."""
+        """
+        Removes the 'max' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Note:
+            Useful for testing maximum value validation on number/date inputs.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('max')")
 
     async def remove_min_attribute(self, selector: str) -> None:
-        """Removes the 'min' attribute from the specified element."""
+        """
+        Removes the 'min' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Note:
+            Useful for testing minimum value validation on number/date inputs.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('min')")
 
     async def remove_accept_attribute(self, selector: str) -> None:
-        """Removes the 'accept' attribute from the specified element."""
+        """
+        Removes the 'accept' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the file input element.
+
+        Note:
+            Useful for testing file upload with different file types.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('accept')")
 
     async def remove_type_attribute(self, selector: str) -> None:
-        """Removes the 'type' attribute from the specified element."""
+        """
+        Removes the 'type' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Note:
+            Useful for testing input type validation.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('type')")
 
     async def remove_pattern_attribute(self, selector: str) -> None:
-        """Removes the 'pattern' attribute from the specified element."""
+        """
+        Removes the 'pattern' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Note:
+            Useful for testing regex pattern validation.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('pattern')")
 
     async def remove_disabled_attribute(self, selector: str) -> None:
-        """Removes the 'disabled' attribute from the specified element."""
+        """
+        Removes the 'disabled' attribute from the specified element.
+
+        Args:
+            selector (str): Selector for the element.
+
+        Note:
+            Useful for testing interactions with disabled elements.
+        """
         await self.wait_for_selector(selector)
         await self.page.eval_on_selector(selector, "el => el.removeAttribute('disabled')")
 
@@ -972,28 +1052,67 @@ class BasePage:
     # ============================================================================
 
     async def double_click(self, selector: str, timeout: int = 30000) -> None:
-        """Double-clicks an element."""
+        """
+        Double-clicks an element.
+
+        Args:
+            selector (str): Selector for the element to double-click.
+            timeout (int): Timeout in milliseconds. Defaults to 30000.
+
+        Raises:
+            ElementNotFoundError: If element is not found within timeout.
+        """
         try:
             await self.page.locator(selector).dblclick()
         except PlaywrightTimeoutError as e:
             raise ElementNotFoundError(selector, timeout=timeout) from e
 
     async def right_click(self, selector: str, timeout: int = 30000) -> None:
-        """Right-clicks an element to open context menu."""
+        """
+        Right-clicks an element to open context menu.
+
+        Args:
+            selector (str): Selector for the element to right-click.
+            timeout (int): Timeout in milliseconds. Defaults to 30000.
+
+        Raises:
+            ElementNotFoundError: If element is not found within timeout.
+        """
         try:
             await self.page.locator(selector).click(button="right")
         except PlaywrightTimeoutError as e:
             raise ElementNotFoundError(selector, timeout=timeout) from e
 
     async def hover(self, selector: str, timeout: int = 30000) -> None:
-        """Hovers over an element."""
+        """
+        Hovers over an element.
+
+        Args:
+            selector (str): Selector for the element to hover over.
+            timeout (int): Timeout in milliseconds. Defaults to 30000.
+
+        Raises:
+            ElementNotFoundError: If element is not found within timeout.
+        """
         try:
             await self.page.locator(selector).hover()
         except PlaywrightTimeoutError as e:
             raise ElementNotFoundError(selector, timeout=timeout) from e
 
     async def drag_and_drop(self, source_selector: str, target_selector: str) -> None:
-        """Drags element from source to target."""
+        """
+        Drags element from source to target.
+
+        Args:
+            source_selector (str): Selector for the element to drag.
+            target_selector (str): Selector for the target drop zone.
+
+        Raises:
+            ValidationError: If drag and drop operation fails.
+
+        Example:
+            await self.drag_and_drop('.draggable-item', '.drop-zone')
+        """
         try:
             source = self.page.locator(source_selector)
             target = self.page.locator(target_selector)
@@ -1010,7 +1129,15 @@ class BasePage:
     # ============================================================================
         
     async def switch_to_new_tab(self) -> None:
-        """Switches to the newest opened tab."""
+        """
+        Switches to the newest opened tab.
+
+        Raises:
+            ValidationError: If tab switch operation fails.
+
+        Note:
+            Updates self.page to reference the new tab.
+        """
         try:
             # Wait for new page to open
             async with self.page.context.expect_page() as new_page_info:
@@ -1023,7 +1150,15 @@ class BasePage:
             raise ValidationError("tab_switch", f"Tab switch failed: {str(e)}") from e
 
     async def close_current_tab(self) -> None:
-        """Closes current tab and switches to previous one."""
+        """
+        Closes current tab and switches to previous one.
+
+        Raises:
+            ValidationError: If tab close operation fails.
+
+        Note:
+            Will not close the last remaining tab - logs a warning instead.
+        """
         try:
             context = self.page.context
             pages = context.pages
@@ -1040,7 +1175,15 @@ class BasePage:
     # ============================================================================
 
     async def refresh_page(self) -> None:
-        """Refreshes the current page."""
+        """
+        Refreshes the current page.
+
+        Raises:
+            ValidationError: If page refresh operation fails.
+
+        Note:
+            Waits for page to fully load after refresh.
+        """
         try:
             await self.page.reload()
             await self.wait_for_page_load()
@@ -1048,7 +1191,15 @@ class BasePage:
             raise ValidationError("page_refresh", f"Page refresh failed: {str(e)}") from e
 
     async def go_back(self) -> None:
-        """Navigates back in browser history."""
+        """
+        Navigates back in browser history.
+
+        Raises:
+            ValidationError: If back navigation fails.
+
+        Note:
+            Waits for page to fully load after navigation.
+        """
         try:
             await self.page.go_back()
             await self.wait_for_page_load()
@@ -1056,7 +1207,15 @@ class BasePage:
             raise ValidationError("navigation_back", f"Back navigation failed: {str(e)}") from e
 
     async def go_forward(self) -> None:
-        """Navigates forward in browser history."""
+        """
+        Navigates forward in browser history.
+
+        Raises:
+            ValidationError: If forward navigation fails.
+
+        Note:
+            Waits for page to fully load after navigation.
+        """
         try:
             await self.page.go_forward()
             await self.wait_for_page_load()
@@ -1116,6 +1275,15 @@ class BasePage:
     async def close_modal_by_escape(self, modal_selector: str) -> None:
         """
         Closes a modal by pressing the Escape key.
+
+        Args:
+            modal_selector (str): Selector for the modal element to verify closure.
+
+        Raises:
+            PlaywrightTimeoutError: If modal doesn't close within 5 seconds.
+
+        Example:
+            await self.close_modal_by_escape('.modal-dialog')
         """
         await self.page.keyboard.press('Escape')
         await self.page.wait_for_selector(modal_selector, state='hidden', timeout=5000)
