@@ -139,3 +139,10 @@ class RedisError(Exception):
             error_message = "Redis error occurred"
             
         super().__init__(error_message)
+
+class APIError(Exception):
+    """Exception raised for API request failures."""
+    
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)

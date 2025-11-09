@@ -31,6 +31,7 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 from helpers.redis_client import RedisClient
 from pages.login_page import LoginPage
 from helpers.database import AsyncPostgresConnector
+from helpers.api_client import APIClient
 
 # Ensure package imports work regardless of execution path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -213,6 +214,39 @@ def pytest_runtest_makereport(item, call):
                 logger.info(f"📸 Screenshot captured and attached to Allure: {filename}")
             except Exception as e:
                 logger.error(f"Error capturing screenshot: {e}")
+
+
+@pytest_asyncio.fixture
+async def api_client(playwright):
+    """
+    Provides API client using Playwright's request context.
+    
+    Returns a clean API client - configure authentication as needed in your tests.
+    
+    Example:
+        @pytest.mark.asyncio
+        async def test_api(api_client):
+            # Option 1: Use environment variable
+            if token := os.getenv("API_BEARER_TOKEN"):
+                await api_client.set_bearer_token(token)
+            
+            # Option 2: Login to get token
+            login_resp = await api_client.post("/auth/login", data={...})
+            await api_client.set_bearer_token(login_resp["token"])
+            
+            # Make authenticated requests
+            response = await api_client.get("/users")
+    """
+    async with playwright.request.new_context(
+        base_url=os.getenv("API_BASE_URL"),
+        extra_http_headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
+    ) as request_context:
+        api = APIClient(request_context, os.getenv("API_BASE_URL"))
+        yield api
+
 
 # --- Database + Redis fixtures ------------------------------------------------
 if os.getenv("DB_TEST") == "True":

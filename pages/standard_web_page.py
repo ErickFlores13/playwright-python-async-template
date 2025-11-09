@@ -26,14 +26,26 @@ class StandardWebPage(BasePage):
     async def create_item_workflow(self, 
                                 form_data: dict,
                                 create_button_selector: str,
-                                success_message_selector: str,
-                                redirect_wait: bool = True) -> None:
-        """Complete create workflow with validation."""
+                                success_message_selector: str,) -> None:
+        """
+        Executes a complete item creation workflow with validation.
+
+        Args:
+            form_data (dict): Dictionary containing form field selectors as keys and values to fill.
+            create_button_selector (str): Selector for the create/submit button.
+            success_message_selector (str): Selector for the success message element.
+
+        Example:
+            await self.create_item_workflow(
+                form_data={'input[name="title"]': 'New Item'},
+                create_button_selector='button[type="submit"]',
+                success_message_selector='.alert-success'
+            )
+        """
         await self.fill_data(form_data)
         await self.page.click(create_button_selector)
         
-        if redirect_wait:
-            await self.wait_for_page_load()
+        await self.wait_for_page_load()
         
         if success_message_selector:
             await self.is_visible(success_message_selector)
@@ -42,8 +54,24 @@ class StandardWebPage(BasePage):
                             edit_data: dict,
                             edit_button_selector: str,
                             save_button_selector: str,
-                            success_message_selector: str) -> None:
-        """Complete edit workflow."""
+                            success_message_selector: str = None) -> None:
+        """
+        Executes a complete item editing workflow with validation.
+
+        Args:
+            edit_data (dict): Dictionary containing form field selectors and new values.
+            edit_button_selector (str): Selector for the edit button to trigger edit mode.
+            save_button_selector (str): Selector for the save/submit button.
+            success_message_selector (str): Selector for the success message element.
+
+        Example:
+            await self.edit_item_workflow(
+                edit_data={'input[name="title"]': 'Updated Title'},
+                edit_button_selector='button.edit',
+                save_button_selector='button[type="submit"]',
+                success_message_selector='.alert-success'
+            )
+        """
         await self.page.click(edit_button_selector)
         await self.edit_item(edit_data)
         await self.page.click(save_button_selector)
