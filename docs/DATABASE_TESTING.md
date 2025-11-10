@@ -670,6 +670,73 @@ DB_NAME=testdb  # ✅ Not production
 
 ---
 
+## ⚠️ CI/CD Security Warning
+
+**We strongly recommend NOT including database tests in CI/CD pipelines.**
+
+### Security Risks:
+
+1. **Credential Exposure**
+   - Database credentials stored in CI/CD environment variables
+   - Risk of credentials leaking in logs or build artifacts
+   - Shared CI environments may expose secrets
+
+2. **Network Exposure**
+   - Opening database ports to CI runners
+   - Potential attack vector if CI is compromised
+   - Test databases may be accessible from internet
+
+3. **Data Breach Risk**
+   - Test data may contain sensitive information
+   - CI logs may expose query results
+   - Database dumps in artifacts could leak data
+
+4. **Infrastructure Attack Surface**
+   - Additional database containers/services = more attack vectors
+   - Misconfigured database services in CI
+   - Potential for SQL injection testing to affect shared resources
+
+### Recommended Approach:
+
+✅ **Run database tests locally only**
+```bash
+# Developer machine - secure, controlled environment
+DB_TEST=true pytest tests/test_database_examples.py
+```
+
+✅ **Use separate test databases**
+```bash
+# Never use production or staging databases
+DB_NAME=local_test_db  # Isolated test database
+```
+
+✅ **Keep database credentials out of CI**
+```yaml
+# CI configuration - skip database tests
+environment:
+  DB_TEST: false  # Database tests disabled in CI
+```
+
+✅ **If you MUST run in CI (advanced teams only):**
+- Use ephemeral containers (Docker) that are destroyed after tests
+- Use CI secrets management (GitHub Secrets, Jenkins Credentials)
+- Rotate database credentials regularly
+- Use network isolation (VPC, security groups)
+- Never commit `.env` files with real credentials
+- Audit CI logs for credential leaks
+
+### Alternative: Mock/Integration Tests
+
+Instead of real database tests in CI, consider:
+- Mock database responses for unit tests
+- Integration tests with in-memory databases (SQLite)
+- Contract testing to verify database interface
+- Schedule database tests nightly on secure infrastructure
+
+**Bottom line:** Database testing in CI/CD introduces significant security risks. Keep it local unless you have dedicated DevOps/Security resources.
+
+---
+
 ## Environment Variables Reference
 
 ```bash
