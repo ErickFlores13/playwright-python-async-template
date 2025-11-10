@@ -30,7 +30,7 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 # Custom imports
 from helpers.redis_client import RedisClient
 from pages.login_page import LoginPage
-from helpers.database import AsyncPostgresConnector
+from helpers.database import DatabaseClient, MongoDBClient
 from helpers.api_client import APIClient
 
 # Ensure package imports work regardless of execution path
@@ -248,24 +248,67 @@ async def api_client(playwright):
         yield api
 
 
-# --- Database + Redis fixtures ------------------------------------------------
-if os.getenv("DB_TEST") == "True":
-    @pytest_asyncio.fixture(scope="module")
-    async def db_session():
-        """Async Postgres connection for Central DB."""
-        connector = AsyncPostgresConnector(
-            user=os.getenv("SQL_USER"),
-            password=os.getenv("SQL_PASSWORD"),
-            host=os.getenv("SQL_HOST"),
-            port=os.getenv("SQL_PORT"),
-            dbname=os.getenv("SQL_DBNAME"),
-            echo=False,
-        )
-        async with connector.get_session() as session:
-            yield session
+# --- Database fixtures --------------------------------------------------------
+@pytest_asyncio.fixture
+async def db_client():
+    """
+    Provides SQL database client (PostgreSQL, MySQL, SQL Server, Oracle).
+    
+    Only activates if DB_TEST=true in environment variables.
+    Uses environment variables for configuration (DB_TYPE, DB_HOST, etc.).
+    Provides basic query execution methods - users write their own queries.
+    
+    Example:
+        @pytest.mark.asyncio
+        async def test_database(db_client):
+            # Basic query
+            user = await db_client.fetch_one(
+                "SELECT * FROM users WHERE email = :email",
+                {"email": "test@test.com"}
+            )
+            assert user["status"] == "active"
+            
+            # Use SQLAlchemy ORM directly if needed
+            async with db_client.session_maker() as session:
+                # Your ORM queries here
+                pass
+    """
+    if os.getenv("DB_TEST", "false").lower() != "true":
+        pytest.skip("Database testing disabled (DB_TEST is not true)")
+    
+    client = DatabaseClient()
+    await client.connect()
+    yield client
+    await client.disconnect()
 
-    @pytest_asyncio.fixture(scope="function", autouse=True)
-    async def close_redis():
-        """Automatically closes all Redis connections after each test."""
-        yield
-        await RedisClient.close_all()
+
+@pytest_asyncio.fixture
+async def mongo_client():
+    """
+    Provides MongoDB client for NoSQL database operations.
+    
+    Only activates if DB_TEST=true in environment variables.
+    Uses environment variables for configuration (MONGO_HOST, MONGO_PORT, etc.).
+    
+    Example:
+        @pytest.mark.asyncio
+        async def test_mongodb(mongo_client):
+            collection = mongo_client.collection("users")
+            result = await collection.insert_one({"name": "test"})
+            assert result.inserted_id is not None
+    """
+    if os.getenv("DB_TEST", "false").lower() != "true":
+        pytest.skip("Database testing disabled (DB_TEST is not true)")
+    
+    client = MongoDBClient()
+    await client.connect()
+    yield client
+    await client.disconnect()
+
+
+# --- Redis fixture ------------------------------------------------------------
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def close_redis():
+    """Automatically closes all Redis connections after each test."""
+    yield
+    await RedisClient.close_all()
