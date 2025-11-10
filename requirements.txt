@@ -7,9 +7,12 @@ pytest-rerunfailures==14.0
 playwright==1.46.0
 
 # Database integration
-SQLAlchemy==2.0.32
-SQLAlchemy-Utils==0.41.2
-pytest-sqlalchemy==0.2.1
+SQLAlchemy[asyncio]==2.0.32
+asyncpg>=0.29.0              # PostgreSQL async driver
+aiomysql>=0.2.0              # MySQL async driver (optional)
+# pyodbc>=5.0.0              # SQL Server driver (optional - uncomment if needed)
+# cx-Oracle>=8.3.0           # Oracle driver (optional - uncomment if needed)
+motor>=3.3.0                 # MongoDB async driver
 
 # Redis cache integration
 redis==5.0.8
@@ -22,6 +25,6 @@ allure-pytest==2.15.0
 allure-python-commons==2.15.0
 
 # Additional utilities
-pytest-xdist==3.5.0  # For parallel test execution
-pytest-html==4.1.1   # HTML reports
-pytest-cov==4.1.0    # Coverage reports
+pytest-xdist==3.5.0          # For parallel test execution
+pytest-html==4.1.1           # HTML reports
+pytest-cov==4.1.0            # Coverage reports
