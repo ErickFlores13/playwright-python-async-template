@@ -167,6 +167,8 @@ class StandardWebPage(BasePage):
     async def validate_no_data_in_table(self, data_filters: dict, filter_button_selector: str, no_data_selector: str) -> None:
         """
         Validates that the table shows no data for the given filters.
+        
+        Useful for validating deletion or that specific records don't exist.
 
         Args:
             data_filters (dict): Dictionary with the filter criteria to apply.
@@ -178,6 +180,7 @@ class StandardWebPage(BasePage):
         """
         await self.search_with_filters(data_filters, filter_button_selector)
         await self.is_visible(no_data_selector)
+
 
 
     async def fields_validations(

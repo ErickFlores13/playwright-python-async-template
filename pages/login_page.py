@@ -35,6 +35,7 @@ class LoginPage(BasePage):
         self.password_selector = 'input[name="password"]'
         self.submit_button_selector = 'button[type="submit"]'
         self.error_message_selector = '.error-message, .alert-danger, [role="alert"]'
+        self.user_menu_selector = '[data-testid="user-menu"]'  # Common success indicator
         
     async def login(self, username: str, password: str, base_url: str = None) -> Page:
         """
@@ -143,3 +144,21 @@ class LoginPage(BasePage):
         """
         await self.page.click(logout_selector)
         await self.page.wait_for_load_state("networkidle")
+    
+    async def is_user_logged_in(self) -> bool:
+        """
+        Check if user is logged in by verifying user menu visibility.
+        
+        This is a convenience method that checks for the common user menu indicator.
+        Override user_menu_selector in __init__ to match your application.
+        
+        Returns:
+            bool: True if user menu is visible (logged in), False otherwise
+            
+        Example:
+            >>> login_page = LoginPage(page)
+            >>> await login_page.login("user@example.com", "password123")
+            >>> is_logged = await login_page.is_user_logged_in()
+            >>> assert is_logged, "Login failed"
+        """
+        return await self.is_logged_in(self.user_menu_selector)
