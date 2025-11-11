@@ -12,7 +12,6 @@ asyncpg>=0.29.0              # PostgreSQL async driver
 aiomysql>=0.2.0              # MySQL async driver (optional)
 # pyodbc>=5.0.0              # SQL Server driver (optional - uncomment if needed)
 # cx-Oracle>=8.3.0           # Oracle driver (optional - uncomment if needed)
-motor>=3.3.0                 # MongoDB async driver
 
 # Redis cache integration
 redis==5.0.8

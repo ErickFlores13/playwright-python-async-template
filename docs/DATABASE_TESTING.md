@@ -1,18 +1,17 @@
 # Database Testing Guide
 
-Complete guide for database testing in this Playwright template. This template provides flexible database clients supporting SQL databases (PostgreSQL, MySQL, SQL Server, Oracle) and MongoDB.
+Complete guide for database testing in this Playwright template. This template provides flexible database clients supporting SQL databases (PostgreSQL, MySQL, SQL Server, Oracle).
 
 ---
 
 ## Table of Contents
 1. [Quick Start](#quick-start)
 2. [SQL Database Client](#sql-database-client)
-3. [MongoDB Client](#mongodb-client)
-4. [CRUD Operations](#crud-operations)
-5. [Using SQLAlchemy ORM](#using-sqlalchemy-orm)
-6. [Transactions](#transactions)
-7. [Hybrid UI + Database Testing](#hybrid-ui--database-testing)
-8. [Best Practices](#best-practices)
+3. [CRUD Operations](#crud-operations)
+4. [Using SQLAlchemy ORM](#using-sqlalchemy-orm)
+5. [Transactions](#transactions)
+6. [Hybrid UI + Database Testing](#hybrid-ui--database-testing)
+7. [Best Practices](#best-practices)
 
 ---
 
@@ -87,42 +86,6 @@ mssql+aioodbc://user:pass@host:1433/dbname?driver=ODBC+Driver+17+for+SQL+Server
 
 # Oracle
 oracle+cx_oracle_async://user:pass@host:1521/dbname
-```
-
----
-
-## MongoDB Client
-
-For NoSQL database operations, use the `MongoDBClient`:
-
-### Configuration
-
-```bash
-# .env configuration
-DB_TEST=true
-MONGO_HOST=localhost
-MONGO_PORT=27017
-MONGO_DB=testdb
-MONGO_USER=
-MONGO_PASSWORD=
-```
-
-### Basic Usage
-
-```python
-@pytest.mark.asyncio
-async def test_mongodb(mongo_client):
-    # Get collection
-    users = mongo_client.collection("users")
-    
-    # Insert document
-    result = await users.insert_one({
-        "name": "John",
-        "email": "john@example.com",
-        "status": "active"
-    })
-    
-    assert result.inserted_id is not None
 ```
 
 ---
@@ -750,13 +713,6 @@ DB_PORT=5432                        # 5432 (Postgres), 3306 (MySQL), 1433 (SQL S
 DB_NAME=testdb
 DB_USER=postgres
 DB_PASSWORD=password
-
-# MongoDB
-MONGO_HOST=localhost
-MONGO_PORT=27017
-MONGO_DB=testdb
-MONGO_USER=
-MONGO_PASSWORD=
 ```
 
 ---
@@ -780,29 +736,11 @@ MONGO_PASSWORD=
 
 ---
 
-### MongoDB Client (`mongo_client`)
-
-**Connection:**
-- `connect()` - Establish MongoDB connection
-- `disconnect()` - Close MongoDB connection
-
-**Collections:**
-- `collection(name)` - Get collection by name
-
-**Motor API:**
-Use standard Motor/PyMongo async methods:
-- `insert_one()`, `insert_many()`
-- `find_one()`, `find()`
-- `update_one()`, `update_many()`
-- `delete_one()`, `delete_many()`
-
----
-
 ## Summary
 
 This template provides **production-ready database testing** with:
 
-✅ **Multi-Database Support** - PostgreSQL, MySQL, SQL Server, Oracle, MongoDB  
+✅ **Multi-Database Support** - PostgreSQL, MySQL, SQL Server, Oracle  
 ✅ **Flexible Querying** - Raw SQL or SQLAlchemy ORM  
 ✅ **Connection Pooling** - Optimized performance  
 ✅ **Async Operations** - Non-blocking database calls  
@@ -826,7 +764,6 @@ asyncpg>=0.29.0              # PostgreSQL
 aiomysql>=0.2.0              # MySQL
 pyodbc>=5.0.0                # SQL Server
 cx-Oracle>=8.3.0             # Oracle
-motor>=3.3.0                 # MongoDB
 ```
 
 ---

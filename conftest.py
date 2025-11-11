@@ -30,7 +30,7 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 # Custom imports
 from helpers.redis_client import RedisClient
 from pages.login_page import LoginPage
-from helpers.database import DatabaseClient, MongoDBClient
+from helpers.database import DatabaseClient
 from helpers.api_client import APIClient
 
 # Ensure package imports work regardless of execution path
@@ -277,30 +277,6 @@ async def db_client():
         pytest.skip("Database testing disabled (DB_TEST is not true)")
     
     client = DatabaseClient()
-    await client.connect()
-    yield client
-    await client.disconnect()
-
-
-@pytest_asyncio.fixture
-async def mongo_client():
-    """
-    Provides MongoDB client for NoSQL database operations.
-    
-    Only activates if DB_TEST=true in environment variables.
-    Uses environment variables for configuration (MONGO_HOST, MONGO_PORT, etc.).
-    
-    Example:
-        @pytest.mark.asyncio
-        async def test_mongodb(mongo_client):
-            collection = mongo_client.collection("users")
-            result = await collection.insert_one({"name": "test"})
-            assert result.inserted_id is not None
-    """
-    if os.getenv("DB_TEST", "false").lower() != "true":
-        pytest.skip("Database testing disabled (DB_TEST is not true)")
-    
-    client = MongoDBClient()
     await client.connect()
     yield client
     await client.disconnect()

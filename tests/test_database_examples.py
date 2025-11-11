@@ -3,7 +3,6 @@ Database Testing Examples
 
 Simple examples showing how to use the database clients in this template:
 - SQL Database operations (PostgreSQL, MySQL, SQL Server, Oracle)
-- MongoDB operations
 - Hybrid UI + Database testing
 
 Setup:
@@ -14,7 +13,7 @@ Setup:
 
 import pytest
 import os
-from helpers.database import DatabaseClient, MongoDBClient
+from helpers.database import DatabaseClient
 
 
 # ============================================================================
@@ -176,90 +175,7 @@ async def test_with_sqlalchemy_orm(db_client: DatabaseClient):
 
 
 # ============================================================================
-# Example 7: MongoDB - Insert Document
-# ============================================================================
-@pytest.mark.asyncio
-async def test_mongodb_insert(mongo_client: MongoDBClient):
-    """
-    Insert a document into MongoDB.
-    
-    MongoDB uses collections and documents (not tables and rows).
-    """
-    # Get collection
-    users = mongo_client.collection("users")
-    
-    # Insert document
-    result = await users.insert_one({
-        "username": "mongotest",
-        "email": "mongo@example.com",
-        "status": "active",
-        "tags": ["test", "example"]
-    })
-    
-    assert result.inserted_id is not None
-    
-    # Cleanup
-    await users.delete_one({"_id": result.inserted_id})
-
-
-# ============================================================================
-# Example 8: MongoDB - Find Document
-# ============================================================================
-@pytest.mark.asyncio
-async def test_mongodb_find(mongo_client: MongoDBClient):
-    """
-    Find a document in MongoDB.
-    """
-    users = mongo_client.collection("users")
-    
-    # Insert test document
-    result = await users.insert_one({
-        "username": "findtest",
-        "email": "find@example.com"
-    })
-    
-    # Find document
-    user = await users.find_one({"email": "find@example.com"})
-    
-    assert user is not None
-    assert user["username"] == "findtest"
-    
-    # Cleanup
-    await users.delete_one({"_id": result.inserted_id})
-
-
-# ============================================================================
-# Example 9: MongoDB - Update Document
-# ============================================================================
-@pytest.mark.asyncio
-async def test_mongodb_update(mongo_client: MongoDBClient):
-    """
-    Update a document in MongoDB.
-    """
-    users = mongo_client.collection("users")
-    
-    # Insert test document
-    result = await users.insert_one({
-        "username": "updatetest",
-        "status": "active"
-    })
-    
-    # Update document
-    await users.update_one(
-        {"_id": result.inserted_id},
-        {"$set": {"status": "inactive"}}
-    )
-    
-    # Verify update
-    user = await users.find_one({"_id": result.inserted_id})
-    assert user["status"] == "inactive"
-    
-    # Cleanup
-    await users.delete_one({"_id": result.inserted_id})
-
-
-# ============================================================================
-# Example 10: Hybrid UI + Database (Most Powerful)
+# Example 7: Hybrid UI + Database (Most Powerful)
 # ============================================================================
 @pytest.mark.asyncio
 async def test_ui_database_verification(page, db_client: DatabaseClient):
@@ -346,13 +262,6 @@ Configuration Required (.env):
     DB_USER=postgres
     DB_PASSWORD=password
 
-MongoDB Configuration (.env):
-    MONGO_HOST=localhost
-    MONGO_PORT=27017
-    MONGO_DB=testdb
-    MONGO_USER=
-    MONGO_PASSWORD=
-
 How to Run:
     # Run all database tests
     DB_TEST=true pytest tests/test_database_examples.py
@@ -376,5 +285,4 @@ Dependencies (add to requirements.txt):
     aiomysql>=0.2.0           # MySQL
     pyodbc>=5.0.0             # SQL Server
     cx-Oracle>=8.3.0          # Oracle
-    motor>=3.3.0              # MongoDB
 """
