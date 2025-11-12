@@ -330,6 +330,61 @@ async def test_hybrid(page, api_client):
     assert user_data["username"] == ui_username
 ```
 
+### Test Organization with Markers
+
+The framework provides pytest markers for organizing and running specific test categories:
+
+```bash
+# Run only smoke tests
+pytest -m smoke_test
+
+# Run regression suite
+pytest -m regression
+
+# Run integration tests
+pytest -m integration
+
+# Run unit tests only
+pytest -m unit
+
+# Skip slow tests
+pytest -m "not slow"
+
+# Combine markers
+pytest -m "smoke_test or regression"
+```
+
+**Available Markers:**
+
+| Marker | Description | Example Usage |
+|--------|-------------|---------------|
+| `smoke_test` | Quick smoke tests for critical functionality | `@pytest.mark.smoke_test` |
+| `regression` | Full regression test suite | `@pytest.mark.regression` |
+| `integration` | Integration tests (UI + API + DB) | `@pytest.mark.integration` |
+| `unit` | Unit tests for isolated components | `@pytest.mark.unit` |
+| `slow` | Slow-running tests (e.g., long waits, bulk operations) | `@pytest.mark.slow` |
+
+**Usage Example:**
+
+```python
+import pytest
+
+@pytest.mark.smoke_test
+@pytest.mark.asyncio
+async def test_login(page):
+    """Critical smoke test for login functionality."""
+    # Test code here
+    pass
+
+@pytest.mark.regression
+@pytest.mark.slow
+@pytest.mark.asyncio
+async def test_bulk_data_processing(page):
+    """Regression test with slow execution."""
+    # Test code here
+    pass
+```
+
 ---
 
 ## 🤝 Contributing
