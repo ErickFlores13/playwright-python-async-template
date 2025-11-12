@@ -32,6 +32,7 @@ from helpers.redis_client import RedisClient
 from pages.login_page import LoginPage
 from helpers.database import DatabaseClient
 from helpers.api_client import APIClient
+from utils.config import Config
 
 # Ensure package imports work regardless of execution path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -43,6 +44,35 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
+
+# --- Pytest configuration hook for parallel execution -------------------------
+def pytest_addoption(parser):
+    """Add custom command line options and read environment variables."""
+    # pytest-xdist parallel execution
+    # If -n is not provided on command line, check PYTEST_WORKERS env var
+    parser.addoption(
+        "--workers",
+        action="store",
+        default=None,
+        help="Number of workers for parallel execution (overrides PYTEST_WORKERS env var)"
+    )
+
+
+def pytest_configure(config):
+    """
+    Configure pytest based on environment variables.
+    
+    Automatically enables parallel execution if PYTEST_WORKERS is set
+    and -n option is not provided on command line.
+    """
+    # Check if -n option was provided on command line
+    # If not, use PYTEST_WORKERS from environment
+    if config.getoption('numprocesses', None) is None:
+        workers = Config.get_pytest_workers()
+        if workers and workers.lower() != 'none':
+            # Set the numprocesses option for pytest-xdist
+            config.option.numprocesses = workers
+            logger.info(f"🚀 Parallel execution enabled: {workers} workers (from PYTEST_WORKERS)")
 
 # --- Pytest event loop fixture -------------------------------------------------
 @pytest_asyncio.fixture(scope="session")
@@ -60,22 +90,48 @@ async def playwright() -> AsyncGenerator[Playwright, None]:
 
 @pytest_asyncio.fixture(scope="session")
 async def browser(playwright: Playwright) -> AsyncGenerator[Browser, None]:
-    """Launches the browser session"""
-    browser = await playwright.chromium.launch()
+    """
+    Launches the browser session with configuration from environment variables.
+    
+    Browser type is determined by BROWSER env var (chromium, firefox, webkit).
+    Headless mode is controlled by HEADLESS env var (true/false).
+    """
+    # Get browser configuration from Config
+    browser_type = Config.get_browser_type()
+    headless = Config.is_headless()
+    
+    # Select browser based on configuration
+    if browser_type == 'firefox':
+        browser = await playwright.firefox.launch(headless=headless)
+    elif browser_type == 'webkit':
+        browser = await playwright.webkit.launch(headless=headless)
+    else:  # Default to chromium
+        browser = await playwright.chromium.launch(headless=headless)
+    
+    logger.info(f"Browser launched: {browser_type}, headless={headless}")
     yield browser
     await browser.close()
 
 @pytest_asyncio.fixture(scope="function")
 async def context(browser: Browser) -> AsyncGenerator[BrowserContext, None]:
-    """Creates a new isolated browser context per test."""
+    """
+    Creates a new isolated browser context per test.
+    
+    Configuration comes from environment variables:
+    - VIEWPORT_WIDTH, VIEWPORT_HEIGHT: Browser viewport size
+    - BROWSER_LOCALE: Browser locale (e.g., en-US, es-ES)
+    - USER_AGENT: Custom user agent string
+    """
+    # Get configuration from Config
+    viewport = Config.get_viewport_size()
+    locale = Config.get_browser_locale()
+    user_agent = Config.get_user_agent()
+    
     context = await browser.new_context(
-        locale="es-ES",
+        viewport=viewport,
+        locale=locale,
+        user_agent=user_agent,
         ignore_https_errors=True,
-        user_agent=(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/91.0.4472.124 Safari/537.36"
-        ),
     )
     yield context
     await context.close()
@@ -83,11 +139,16 @@ async def context(browser: Browser) -> AsyncGenerator[BrowserContext, None]:
 # --- Screenshots directory cleanup --------------------------------------------
 @pytest.fixture(scope="session", autouse=True)
 def clean_screenshots() -> None:
-    """Clean screenshots folder before session start."""
-    screenshots_dir = "screenshots"
+    """
+    Clean screenshots folder before session start.
+    
+    Screenshots directory is determined by SCREENSHOTS_DIR env var.
+    """
+    screenshots_dir = Config.get_screenshots_dir()
     if os.path.exists(screenshots_dir):
         shutil.rmtree(screenshots_dir)
     os.makedirs(screenshots_dir, exist_ok=True)
+    logger.info(f"Screenshots directory cleaned: {screenshots_dir}")
 
 # --- 502 handler --------------------------------------------------------------
 async def add_502_handler(page: Page, max_retries: int = 10, timeout: float = 30.0):
@@ -194,11 +255,20 @@ async def login_admin_local_b(browser: Browser, pages_registry):
 # --- Screenshot + Allure integration on failure -------------------------------
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
-    """Hook to capture screenshots when a test fails."""
+    """
+    Hook to capture screenshots when a test fails.
+    
+    Screenshots are only captured if SCREENSHOT_ON_FAILURE=true in .env
+    """
     outcome = yield
     rep = outcome.get_result()
 
     if rep.when == "call" and rep.failed:
+        # Check if screenshots should be captured
+        if not Config.should_screenshot_on_failure():
+            logger.debug("Screenshot on failure disabled by config")
+            return
+        
         pages_registry = item.funcargs.get("pages_registry", [])
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
