@@ -445,7 +445,7 @@ class TestHelpers:
         return result
     
     @staticmethod
-    def cleanup_temp_files():
+    def cleanup_temp_files() -> None:
         """Clean up temporary files created during tests."""
         temp_dir = os.path.join(os.path.dirname(__file__), 'temp')
         if os.path.exists(temp_dir):
@@ -453,7 +453,7 @@ class TestHelpers:
             shutil.rmtree(temp_dir)
     
     @staticmethod
-    def cleanup_directory(dir_path: str, ignore_errors: bool = True):
+    def cleanup_directory(dir_path: str, ignore_errors: bool = True) -> None:
         """
         Remove a directory and all its contents.
         

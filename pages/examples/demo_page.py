@@ -71,7 +71,7 @@ class DemoPage(StandardWebPage):
     footer_subscribe_button_selector = ".footer-subscribe-button"
     details_button_selector = "button.details, a.details, .action-details"
     
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         """Initialize DemoPage."""
         super().__init__(page)
         self.page = page

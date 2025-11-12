@@ -47,24 +47,37 @@ class Config:
     @staticmethod
     def is_db_testing_enabled() -> bool:
         """Check if database testing is enabled."""
-        return os.getenv('DB_TEST', 'False').lower() == 'true'
+        return os.getenv('DB_TEST', 'false').lower() == 'true'
     
     @staticmethod
-    def get_db_config() -> Dict[str, Any]:
-        """
-        Get database configuration.
-        
-        Returns:
-            Dictionary with database connection parameters
-        """
-        return {
-            'user': os.getenv('SQL_USER', 'postgres'),
-            'password': os.getenv('SQL_PASSWORD', 'postgres'),
-            'host': os.getenv('SQL_HOST', 'localhost'),
-            'port': os.getenv('SQL_PORT', '5432'),
-            'dbname': os.getenv('SQL_DBNAME', 'test_db'),
-            'echo': os.getenv('SQL_ECHO', 'False').lower() == 'true'
-        }
+    def get_db_type() -> str:
+        """Get database type (postgresql, mysql, mssql, oracle)."""
+        return os.getenv('DB_TYPE', 'postgresql')
+    
+    @staticmethod
+    def get_db_host() -> str:
+        """Get database host."""
+        return os.getenv('DB_HOST', 'localhost')
+    
+    @staticmethod
+    def get_db_port() -> str:
+        """Get database port."""
+        return os.getenv('DB_PORT', '5432')
+    
+    @staticmethod
+    def get_db_name() -> str:
+        """Get database name."""
+        return os.getenv('DB_NAME', 'testdb')
+    
+    @staticmethod
+    def get_db_user() -> str:
+        """Get database username."""
+        return os.getenv('DB_USER', 'postgres')
+    
+    @staticmethod
+    def get_db_password() -> str:
+        """Get database password."""
+        return os.getenv('DB_PASSWORD', 'password')
     
     # ========== Redis Settings ==========
     @staticmethod
@@ -152,40 +165,6 @@ class Config:
         """Get Discord webhook URL for notifications."""
         return os.getenv('DISCORD_WEBHOOK_URL')
     
-    # ========== CI/CD Settings ==========
-    @staticmethod
-    def is_ci_mode() -> bool:
-        """Check if running in CI/CD environment."""
-        # Check common CI environment variables
-        ci_indicators = ['CI', 'CONTINUOUS_INTEGRATION', 'JENKINS_HOME', 'GITHUB_ACTIONS']
-        return any(os.getenv(indicator) for indicator in ci_indicators) or \
-               os.getenv('CI_MODE', 'false').lower() == 'true'
-    
-    @staticmethod
-    def get_jenkins_job_url() -> Optional[str]:
-        """Get Jenkins job URL."""
-        return os.getenv('JENKINS_JOB_URL') or os.getenv('BUILD_URL')
-    
-    # ========== Custom Environment URLs ==========
-    @staticmethod
-    def get_custom_url(key: str, default: Optional[str] = None) -> Optional[str]:
-        """
-        Get a custom URL from environment variables.
-        
-        This is useful for applications with multiple environments or endpoints.
-        
-        Args:
-            key: Environment variable name
-            default: Default value if not found
-            
-        Returns:
-            URL string or None
-            
-        Example:
-            >>> admin_url = Config.get_custom_url('ADMIN_USUARIOS_CENTRAL_URL')
-        """
-        return os.getenv(key, default)
-    
     # ========== Helper Methods ==========
     @staticmethod
     def get_all_config() -> Dict[str, Any]:
@@ -199,13 +178,16 @@ class Config:
         """
         return {
             'base_url': Config.get_base_url(),
+            'test_username': Config.get_test_username(),
             'db_testing_enabled': Config.is_db_testing_enabled(),
+            'db_type': Config.get_db_type(),
+            'db_host': Config.get_db_host(),
             'browser_type': Config.get_browser_type(),
             'headless': Config.is_headless(),
             'viewport': Config.get_viewport_size(),
             'locale': Config.get_browser_locale(),
             'test_timeout': Config.get_test_timeout(),
-            'ci_mode': Config.is_ci_mode(),
+            'pytest_workers': Config.get_pytest_workers(),
             'screenshots_dir': Config.get_screenshots_dir(),
         }
     

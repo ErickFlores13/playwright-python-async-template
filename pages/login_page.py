@@ -20,7 +20,7 @@ class LoginPage(BasePage):
     your application's specific login form structure.
     """
     
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         """
         Initialize the LoginPage with a Playwright page instance.
         

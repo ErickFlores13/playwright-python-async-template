@@ -18,7 +18,7 @@ class StandardWebPage(BasePage):
         page (Page): An instance of the Playwright Page class, representing the current page.
     """
     
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         super().__init__(page)
         self.page = page
         

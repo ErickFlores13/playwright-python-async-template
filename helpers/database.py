@@ -28,7 +28,7 @@ class DatabaseClient:
     - Oracle (oracle+cx_oracle_async)
     """
     
-    def __init__(self, connection_string: Optional[str] = None):
+    def __init__(self, connection_string: Optional[str] = None) -> None:
         """
         Initialize database client.
         

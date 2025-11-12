@@ -5,7 +5,7 @@ from typing import List, Optional, Any
 class RedisClient:
     _instances: List['RedisClient'] = []  # 🔹 Global list of the instances
 
-    def __init__(self, port: str = '6379', db: int = 0):
+    def __init__(self, port: str = '6379', db: int = 0) -> None:
         self.db = db
         self.redis = redis.from_url(f"redis://localhost:{port}")
         self._closed = False

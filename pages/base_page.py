@@ -17,7 +17,7 @@ class BasePage:
     Generic base page with overridable playwright methods that allow a custom-made test automation.
     """
 
-    def __init__(self, page: Page):
+    def __init__(self, page: Page) -> None:
         if not page:
             raise ConfigurationError(
                 config_key="page",

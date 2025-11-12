@@ -16,7 +16,7 @@ class APIClient:
     error handling, authentication, and response validation.
     """
     
-    def __init__(self, request_context: APIRequestContext, base_url: str):
+    def __init__(self, request_context: APIRequestContext, base_url: str) -> None:
         """
         Initialize API client with Playwright's request context.
         

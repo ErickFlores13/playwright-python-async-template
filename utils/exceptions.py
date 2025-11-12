@@ -8,6 +8,8 @@ Author: Erick Guadalupe Félix Flores
 License: MIT
 """
 
+from typing import Optional
+
 
 class ElementNotFoundError(Exception):
     """
@@ -17,7 +19,7 @@ class ElementNotFoundError(Exception):
     but are not found within the specified timeout period.
     """
     
-    def __init__(self, selector: str, timeout: int = None):
+    def __init__(self, selector: str, timeout: Optional[int] = None) -> None:
         self.selector = selector
         self.timeout = timeout
         
@@ -37,7 +39,7 @@ class ValidationError(Exception):
     issues during test execution.
     """
     
-    def __init__(self, field: str = None, message: str = None):
+    def __init__(self, field: Optional[str] = None, message: Optional[str] = None) -> None:
         self.field = field
         
         if field and message:
