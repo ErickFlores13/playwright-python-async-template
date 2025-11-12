@@ -203,7 +203,7 @@ class TestHelpers:
     def get_test_file_path(filename: str) -> str:
         """Get the full path to a test file."""
         test_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(test_dir, 'test_files', filename)
+        return os.path.join(test_dir, 'test', filename)
     
     @staticmethod
     def create_temp_file(content: str, filename: str = None, extension: str = '.txt') -> str:

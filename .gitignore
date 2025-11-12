@@ -214,3 +214,16 @@ allure-report/
 # Screenshots from test failures
 screenshots/
 test-results/
+
+# Test artifacts
+.allure/
+
+# Environment
+*.env.local
+
+# Temp files from test_helpers
+utils/temp/
+
+# OS specific
+.DS_Store
+Thumbs.db
