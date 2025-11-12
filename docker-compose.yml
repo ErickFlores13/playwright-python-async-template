@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (Optional - only starts if DB_TEST=true)
+  postgres:
+    image: postgres:15-alpine
+    container_name: playwright-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+      POSTGRES_DB: ${DB_NAME:-testdb}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - playwright-network
+    profiles:
+      - with-db
+
+  # Redis Cache (Optional - only starts if needed)
+  redis:
+    image: redis:7-alpine
+    container_name: playwright-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - playwright-network
+    profiles:
+      - with-redis
+
+  # Playwright Test Runner
+  playwright-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playwright-tests
+    environment:
+      # Application settings
+      BASE_URL: ${BASE_URL:-https://example.com}
+      TEST_USERNAME: ${TEST_USERNAME:-test_user}
+      TEST_PASSWORD: ${TEST_PASSWORD:-test_password}
+      
+      # Browser settings
+      BROWSER: ${BROWSER:-chromium}
+      HEADLESS: ${HEADLESS:-true}
+      VIEWPORT_WIDTH: ${VIEWPORT_WIDTH:-1920}
+      VIEWPORT_HEIGHT: ${VIEWPORT_HEIGHT:-1080}
+      BROWSER_LOCALE: ${BROWSER_LOCALE:-en-US}
+      USER_AGENT: ${USER_AGENT:-Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36}
+      
+      # Test execution
+      PYTEST_WORKERS: ${PYTEST_WORKERS:-auto}
+      TIMEOUT: ${TIMEOUT:-30000}
+      SCREENSHOT_ON_FAILURE: ${SCREENSHOT_ON_FAILURE:-true}
+      SCREENSHOTS_DIR: ${SCREENSHOTS_DIR:-screenshots}
+      
+      # Database settings (if with-db profile is active)
+      DB_TEST: ${DB_TEST:-false}
+      DB_TYPE: ${DB_TYPE:-postgresql}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-testdb}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      
+      # Redis settings (if with-redis profile is active)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: ${REDIS_DB:-0}
+      
+      # API settings
+      API_BASE_URL: ${API_BASE_URL:-}
+      API_BEARER_TOKEN: ${API_BEARER_TOKEN:-}
+      API_KEY: ${API_KEY:-}
+      API_USERNAME: ${API_USERNAME:-}
+      API_PASSWORD: ${API_PASSWORD:-}
+      
+      # Notifications
+      DISCORD_WEBHOOK_URL: ${DISCORD_WEBHOOK_URL:-}
+      
+      # Python settings
+      PYTHONPATH: /app
+      PYTHONUNBUFFERED: 1
+    volumes:
+      # Mount source code for development
+      - ./tests:/app/tests
+      - ./pages:/app/pages
+      - ./helpers:/app/helpers
+      - ./utils:/app/utils
+      - ./conftest.py:/app/conftest.py
+      - ./pytest.ini:/app/pytest.ini
+      
+      # Mount reports and screenshots
+      - ./reports:/app/reports
+      - ./screenshots:/app/screenshots
+      
+      # Preserve downloads
+      - ./downloads:/app/downloads
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false
+      redis:
+        condition: service_healthy
+        required: false
+    networks:
+      - playwright-network
+    # Uncomment to run specific test commands
+    # command: pytest tests/ -v --alluredir=reports/allure-results
+    # command: pytest tests/test_ui_examples.py -v
+    # command: pytest tests/ -n auto -v
+
+networks:
+  playwright-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
