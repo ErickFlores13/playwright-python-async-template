@@ -57,6 +57,34 @@ cp .env.example .env
 # Edit .env with your settings
 ```
 
+### 🐳 Docker Setup (Optional)
+
+Run tests with Docker Compose for isolated environments with PostgreSQL and Redis:
+
+```bash
+# Run tests with all services (PostgreSQL + Redis)
+docker-compose --profile with-db --profile with-redis up --abort-on-container-exit
+
+# Run tests with PostgreSQL only
+docker-compose --profile with-db up --abort-on-container-exit
+
+# Run tests with Redis only
+docker-compose --profile with-redis up --abort-on-container-exit
+
+# Run tests without external services
+docker-compose up --abort-on-container-exit
+
+# Clean up containers and volumes
+docker-compose down -v
+```
+
+**Docker Services Available:**
+- `playwright-tests`: Main test runner container
+- `postgres`: PostgreSQL 15 database (profile: `with-db`)
+- `redis`: Redis 7 cache (profile: `with-redis`)
+
+All services include health checks and automatic dependency management.
+
 ### Minimal Configuration
 
 Edit `.env` with your basic settings:
@@ -130,6 +158,7 @@ playwright-python-async-template/
 ├── pytest.ini                  # Pytest settings
 ├── requirements.txt            # Python dependencies
 ├── Dockerfile                  # Docker configuration
+├── docker-compose.yml          # Docker Compose orchestration
 ├── .env.example               # Environment template
 └── README.md                   # This file
 ```
