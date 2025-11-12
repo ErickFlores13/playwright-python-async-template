@@ -2,6 +2,10 @@
 
 Complete guide for API testing in this Playwright template. This template provides a powerful, flexible API client built on Playwright's native `APIRequestContext`.
 
+> **📌 Important:** The `api_client` fixture is a **factory function** that creates API client instances.  
+> Always call `client = await api_client()` to get a client instance before making requests.  
+> This allows you to create multiple clients for different APIs in the same test (e.g., microservices integration).
+
 ---
 
 ## Table of Contents
@@ -32,12 +36,29 @@ API_BEARER_TOKEN=your_token_here  # Optional
 ```python
 @pytest.mark.asyncio
 async def test_api(api_client):
+    # Create API client (uses API_BASE_URL from .env by default)
+    client = await api_client()
+    
     # Set authentication (if needed)
-    await api_client.set_bearer_token(os.getenv("API_BEARER_TOKEN"))
+    await client.set_bearer_token(os.getenv("API_BEARER_TOKEN"))
     
     # Make requests
-    response = await api_client.get("/users")
+    response = await client.get("/users")
     assert response is not None
+```
+
+**3. Multiple APIs in One Test:**
+```python
+@pytest.mark.asyncio
+async def test_multiple_apis(api_client):
+    # Create clients for different APIs
+    auth_api = await api_client("https://auth.example.com")
+    data_api = await api_client("https://api.example.com")
+    
+    # Use them independently
+    token = (await auth_api.post("/login", data={...}))["token"]
+    await data_api.set_bearer_token(token)
+    users = await data_api.get("/users")
 ```
 
 ---
@@ -51,11 +72,14 @@ The API client supports multiple authentication methods. **You decide** when and
 ```python
 @pytest.mark.asyncio
 async def test_bearer_auth(api_client):
+    # Create client (uses API_BASE_URL from .env)
+    client = await api_client()
+    
     # From environment variable
     token = os.getenv("API_BEARER_TOKEN")
-    await api_client.set_bearer_token(token)
+    await client.set_bearer_token(token)
     
-    response = await api_client.get("/users/me")
+    response = await client.get("/users/me")
 ```
 
 **Use cases:** Modern APIs, OAuth 2.0, JWT tokens
@@ -67,11 +91,13 @@ async def test_bearer_auth(api_client):
 ```python
 @pytest.mark.asyncio
 async def test_api_key(api_client):
+    client = await api_client()
+    
     # Default header (X-API-Key)
-    await api_client.set_api_key(os.getenv("API_KEY"))
+    await client.set_api_key(os.getenv("API_KEY"))
     
     # Custom header
-    await api_client.set_api_key("your_key", header_name="Authorization")
+    await client.set_api_key("your_key", header_name="Authorization")
 ```
 
 **Use cases:** SaaS APIs (Stripe, SendGrid, Twilio, OpenAI)
@@ -83,8 +109,9 @@ async def test_api_key(api_client):
 ```python
 @pytest.mark.asyncio
 async def test_basic_auth(api_client):
-    await api_client.set_basic_auth("admin", "password123")
-    response = await api_client.get("/admin/settings")
+    client = await api_client()
+    await client.set_basic_auth("admin", "password123")
+    response = await client.get("/admin/settings")
 ```
 
 **Use cases:** Legacy APIs, admin endpoints
@@ -96,18 +123,20 @@ async def test_basic_auth(api_client):
 ```python
 @pytest.mark.asyncio
 async def test_login_flow(api_client):
+    client = await api_client()
+    
     # Login to get token
-    login_resp = await api_client.post(
+    login_resp = await client.post(
         "/auth/login",
         data={"username": "test", "password": "test"}
     )
     
     # Extract and use token
     token = login_resp["access_token"]
-    await api_client.set_bearer_token(token)
+    await client.set_bearer_token(token)
     
     # Make authenticated requests
-    user_data = await api_client.get("/users/me")
+    user_data = await client.get("/users/me")
 ```
 
 **Use cases:** Testing your own API
@@ -119,7 +148,8 @@ async def test_login_flow(api_client):
 ```python
 @pytest.mark.asyncio
 async def test_custom_headers(api_client):
-    await api_client.set_extra_headers({
+    client = await api_client()
+    await client.set_extra_headers({
         "X-Tenant-ID": "tenant-123",
         "X-API-Version": "v2",
         "Authorization": "Custom xyz789"
@@ -135,9 +165,45 @@ async def test_custom_headers(api_client):
 ```python
 @pytest.mark.asyncio
 async def test_public_endpoint(api_client):
-    await api_client.clear_auth()
-    health = await api_client.get("/health")
+    client = await api_client()
+    await client.clear_auth()
+    health = await client.get("/health")
 ```
+
+---
+
+### 7. Multiple APIs (Microservices/Integration) ⭐
+
+```python
+@pytest.mark.asyncio
+async def test_microservices_integration(api_client):
+    # Create separate clients for different services
+    auth_service = await api_client("https://auth.example.com")
+    user_service = await api_client("https://users.example.com")
+    order_service = await api_client("https://orders.example.com")
+    
+    # Login to get token
+    login_resp = await auth_service.post("/login", data={
+        "username": "test", 
+        "password": "test"
+    })
+    token = login_resp["token"]
+    
+    # Use token across different services
+    await user_service.set_bearer_token(token)
+    await order_service.set_bearer_token(token)
+    
+    # Test cross-service workflow
+    user = await user_service.get("/users/me")
+    order = await order_service.post("/orders", data={
+        "user_id": user["id"],
+        "items": [{"product": "book", "qty": 1}]
+    })
+    
+    assert order["status"] == "pending"
+```
+
+**Use cases:** Microservices, third-party integrations, multi-environment testing
 
 ---
 
@@ -147,7 +213,8 @@ All standard HTTP methods with built-in validation.
 
 ### GET
 ```python
-response = await api_client.get(
+client = await api_client()
+response = await client.get(
     "/users/123",
     params={"include": "profile"},
     headers={"X-Custom": "value"},
@@ -157,7 +224,8 @@ response = await api_client.get(
 
 ### POST
 ```python
-response = await api_client.post(
+client = await api_client()
+response = await client.post(
     "/users",
     data={"name": "John", "email": "john@example.com"},
     expected_status=201
@@ -166,7 +234,8 @@ response = await api_client.post(
 
 ### PUT
 ```python
-response = await api_client.put(
+client = await api_client()
+response = await client.put(
     "/users/123",
     data={"name": "John Updated"},
     expected_status=200
@@ -175,7 +244,8 @@ response = await api_client.put(
 
 ### PATCH
 ```python
-response = await api_client.patch(
+client = await api_client()
+response = await client.patch(
     "/users/123",
     data={"email": "newemail@example.com"},
     expected_status=200
@@ -184,7 +254,8 @@ response = await api_client.patch(
 
 ### DELETE
 ```python
-response = await api_client.delete(
+client = await api_client()
+response = await client.delete(
     "/users/123",
     expected_status=204
 )
@@ -201,7 +272,8 @@ Upload files using multipart/form-data:
 ```python
 @pytest.mark.asyncio
 async def test_upload(api_client):
-    response = await api_client.upload_file(
+    client = await api_client()
+    response = await client.upload_file(
         endpoint="/users/profile/avatar",
         file_path="test_data/image.jpg",
         field_name="avatar",
@@ -226,7 +298,8 @@ Download files from API endpoints:
 ```python
 @pytest.mark.asyncio
 async def test_download(api_client):
-    file_path = await api_client.download_file(
+    client = await api_client()
+    file_path = await client.download_file(
         endpoint="/reports/monthly",
         save_path="downloads/report.pdf",
         params={"month": "2025-01"}
@@ -253,8 +326,10 @@ Automatically fetch all pages from paginated endpoints.
 ```python
 @pytest.mark.asyncio
 async def test_pagination(api_client):
+    client = await api_client()
+    
     # Response format: {"data": [...], "total": 500}
-    all_users = await api_client.get_paginated(
+    all_users = await client.get_paginated(
         endpoint="/users",
         page_param="page",
         limit_param="per_page",

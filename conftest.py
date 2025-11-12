@@ -150,43 +150,6 @@ def clean_screenshots() -> None:
     os.makedirs(screenshots_dir, exist_ok=True)
     logger.info(f"Screenshots directory cleaned: {screenshots_dir}")
 
-# --- 502 handler --------------------------------------------------------------
-async def add_502_handler(page: Page, max_retries: int = 10, timeout: float = 30.0):
-    """
-    Watches for HTTP 502 error popups and reloads the page when detected.
-    Runs as an async background task.
-    """
-    retries = 0
-    async def handle_reload():
-        nonlocal retries
-        if retries >= max_retries:
-            logger.warning("❌ Max retries reached for 502 recovery.")
-            return
-        retries += 1
-        logger.warning(f"⚠️ Detected 502 error. Attempting reload {retries}/{max_retries}...")
-        try:
-            await asyncio.wait_for(page.reload(), timeout=timeout)
-            await page.wait_for_load_state("domcontentloaded")
-            logger.info("✅ Page reloaded successfully.")
-        except asyncio.TimeoutError:
-            logger.error("Timeout while reloading page after 502.")
-        except Exception as e:
-            if "Target closed" in str(e) or "Page closed" in str(e):
-                logger.warning("Page or browser closed — stopping watcher.")
-                raise
-
-    async def watch_loop():
-        while retries < max_retries:
-            try:
-                if await page.locator("#error-information-popup-content > div.error-code").is_visible(timeout=1000):
-                    await handle_reload()
-            except Exception as e:
-                if "Target closed" in str(e) or "Page closed" in str(e):
-                    break
-            await asyncio.sleep(1)
-
-    return asyncio.create_task(watch_loop())
-
 # --- Pages registry -----------------------------------------------------------
 @pytest_asyncio.fixture(scope="function")
 async def pages_registry() -> AsyncGenerator[List[Page], None]:
@@ -289,33 +252,81 @@ def pytest_runtest_makereport(item, call):
 @pytest_asyncio.fixture
 async def api_client(playwright):
     """
-    Provides API client using Playwright's request context.
+    Provides API client factory for creating clients to different APIs.
     
-    Returns a clean API client - configure authentication as needed in your tests.
+    Returns a factory function that creates API clients with custom base URLs.
+    Default uses API_BASE_URL from environment if no URL is provided.
     
     Example:
         @pytest.mark.asyncio
-        async def test_api(api_client):
-            # Option 1: Use environment variable
-            if token := os.getenv("API_BEARER_TOKEN"):
-                await api_client.set_bearer_token(token)
+        async def test_single_api(api_client):
+            # Use default API_BASE_URL from .env
+            client = await api_client()
+            await client.set_bearer_token(os.getenv("API_BEARER_TOKEN"))
+            response = await client.get("/users")
+        
+        @pytest.mark.asyncio
+        async def test_multiple_apis(api_client):
+            # Test integration between two different APIs
+            auth_api = await api_client("https://auth.example.com")
+            data_api = await api_client("https://api.example.com")
             
-            # Option 2: Login to get token
-            login_resp = await api_client.post("/auth/login", data={...})
-            await api_client.set_bearer_token(login_resp["token"])
+            # Login to auth API
+            login_resp = await auth_api.post("/auth/login", data={...})
+            token = login_resp["token"]
             
-            # Make authenticated requests
-            response = await api_client.get("/users")
+            # Use token with data API
+            await data_api.set_bearer_token(token)
+            users = await data_api.get("/users")
+            
+        @pytest.mark.asyncio
+        async def test_env_based_apis(api_client):
+            # Use environment variables for different services
+            auth_client = await api_client(os.getenv("AUTH_API_URL"))
+            payment_client = await api_client(os.getenv("PAYMENT_API_URL"))
+            notification_client = await api_client(os.getenv("NOTIFICATION_API_URL"))
     """
-    async with playwright.request.new_context(
-        base_url=os.getenv("API_BASE_URL"),
-        extra_http_headers={
+    contexts = []
+    
+    async def _create_client(base_url: str = None, headers: dict = None):
+        """
+        Create an API client for a specific base URL.
+        
+        Args:
+            base_url: Base URL for the API. If None, uses API_BASE_URL from .env
+            headers: Additional headers to include in all requests
+        
+        Returns:
+            APIClient instance configured for the specified API
+        """
+        url = base_url or os.getenv("API_BASE_URL")
+        if not url:
+            raise ValueError(
+                "No API base URL provided. Either pass base_url parameter or set API_BASE_URL in .env"
+            )
+        
+        default_headers = {
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
-    ) as request_context:
-        api = APIClient(request_context, os.getenv("API_BASE_URL"))
-        yield api
+        
+        # Merge custom headers with defaults
+        if headers:
+            default_headers.update(headers)
+        
+        request_context = await playwright.request.new_context(
+            base_url=url,
+            extra_http_headers=default_headers
+        )
+        contexts.append(request_context)
+        
+        return APIClient(request_context, url)
+    
+    yield _create_client
+    
+    # Cleanup all created contexts
+    for ctx in contexts:
+        await ctx.dispose()
 
 
 # --- Database fixtures --------------------------------------------------------
@@ -358,3 +369,41 @@ async def close_redis():
     """Automatically closes all Redis connections after each test."""
     yield
     await RedisClient.close_all()
+
+
+# --- 502 handler --------------------------------------------------------------
+async def add_502_handler(page: Page, max_retries: int = 10, timeout: float = 30.0):
+    """
+    Watches for HTTP 502 error popups and reloads the page when detected.
+    Runs as an async background task.
+    """
+    retries = 0
+    async def handle_reload():
+        nonlocal retries
+        if retries >= max_retries:
+            logger.warning("❌ Max retries reached for 502 recovery.")
+            return
+        retries += 1
+        logger.warning(f"⚠️ Detected 502 error. Attempting reload {retries}/{max_retries}...")
+        try:
+            await asyncio.wait_for(page.reload(), timeout=timeout)
+            await page.wait_for_load_state("domcontentloaded")
+            logger.info("✅ Page reloaded successfully.")
+        except asyncio.TimeoutError:
+            logger.error("Timeout while reloading page after 502.")
+        except Exception as e:
+            if "Target closed" in str(e) or "Page closed" in str(e):
+                logger.warning("Page or browser closed — stopping watcher.")
+                raise
+
+    async def watch_loop():
+        while retries < max_retries:
+            try:
+                if await page.locator("#error-information-popup-content > div.error-code").is_visible(timeout=1000):
+                    await handle_reload()
+            except Exception as e:
+                if "Target closed" in str(e) or "Page closed" in str(e):
+                    break
+            await asyncio.sleep(1)
+
+    return asyncio.create_task(watch_loop())

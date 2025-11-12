@@ -9,6 +9,9 @@ Comprehensive examples showing all API testing capabilities in this template:
 - Retry logic
 - Performance testing
 - Hybrid UI + API testing
+- Multiple APIs (Microservices integration)
+
+Note: api_client is a factory function. Always call `client = await api_client()` first.
 """
 
 import pytest
@@ -21,20 +24,23 @@ from helpers.api_client import APIClient
 # Example 1: Bearer Token from Environment Variable (Recommended)
 # ============================================================================
 @pytest.mark.asyncio
-async def test_bearer_token_from_env(api_client: APIClient):
+async def test_bearer_token_from_env(api_client):
     """
     Most common approach: Store token in .env, use in tests.
     
     .env file:
         API_BEARER_TOKEN=eyJhbGci...
     """
+    # Create API client (uses API_BASE_URL from .env)
+    client = await api_client()
+    
     # Get token from environment
     token = os.getenv("API_BEARER_TOKEN")
     if token:
-        await api_client.set_bearer_token(token)
+        await client.set_bearer_token(token)
     
     # Make authenticated requests
-    response = await api_client.get("/users/me")
+    response = await client.get("/users/me")
     assert "email" in response
 
 
@@ -42,14 +48,16 @@ async def test_bearer_token_from_env(api_client: APIClient):
 # Example 2: Login Flow to Get Token (Very Common)
 # ============================================================================
 @pytest.mark.asyncio
-async def test_login_to_get_token(api_client: APIClient):
+async def test_login_to_get_token(api_client):
     """
     Login with credentials to get a JWT token, then use it.
     
     This is the most realistic scenario for testing your own APIs.
     """
+    client = await api_client()
+    
     # Login to get token (no auth needed for login endpoint)
-    login_response = await api_client.post(
+    login_response = await client.post(
         "/auth/login",
         data={
             "username": os.getenv("TEST_USERNAME"),
@@ -61,10 +69,10 @@ async def test_login_to_get_token(api_client: APIClient):
     token = login_response["access_token"]
     
     # Set token for subsequent requests
-    await api_client.set_bearer_token(token)
+    await client.set_bearer_token(token)
     
     # Now make authenticated requests
-    user_data = await api_client.get("/users/me")
+    user_data = await client.get("/users/me")
     assert user_data["username"] == os.getenv("TEST_USERNAME")
 
 
@@ -72,22 +80,24 @@ async def test_login_to_get_token(api_client: APIClient):
 # Example 3: API Key for Third-Party APIs
 # ============================================================================
 @pytest.mark.asyncio
-async def test_api_key_authentication(api_client: APIClient):
+async def test_api_key_authentication(api_client):
     """
     Use API key for SaaS services (Stripe, SendGrid, etc.).
     
     .env file:
         API_KEY=sk_test_abc123xyz
     """
+    client = await api_client()
+    
     api_key = os.getenv("API_KEY")
     if api_key:
         # Default header name (X-API-Key)
-        await api_client.set_api_key(api_key)
+        await client.set_api_key(api_key)
         
         # Or custom header name
-        # await api_client.set_api_key(api_key, header_name="Authorization")
+        # await client.set_api_key(api_key, header_name="Authorization")
     
-    response = await api_client.get("/account")
+    response = await client.get("/account")
     assert response is not None
 
 
@@ -95,99 +105,144 @@ async def test_api_key_authentication(api_client: APIClient):
 # Example 4: No Authentication (Public Endpoints)
 # ============================================================================
 @pytest.mark.asyncio
-async def test_public_endpoint(api_client: APIClient):
+async def test_public_endpoint(api_client):
     """
     Test public endpoints without authentication.
     """
+    client = await api_client()
+    
     # No auth setup needed
-    response = await api_client.get("/health")
+    response = await client.get("/health")
     assert response["status"] == "healthy"
 
 
 # ============================================================================
-# Example 5: Switching Between Authenticated and Public Endpoints
+# Example 5: Multiple APIs - Microservices Integration ⭐
 # ============================================================================
 @pytest.mark.asyncio
-async def test_mixed_auth_endpoints(api_client: APIClient):
+async def test_multiple_apis_integration(api_client):
+    """
+    Test integration between multiple APIs (microservices, third-party services).
+    
+    This shows the power of the factory pattern - create multiple clients!
+    """
+    # Create clients for different services
+    auth_api = await api_client("https://auth.example.com")
+    users_api = await api_client("https://users.example.com")
+    orders_api = await api_client(os.getenv("ORDERS_API_URL"))
+    
+    # Login to auth service
+    login_resp = await auth_api.post("/login", data={
+        "username": "test",
+        "password": "test"
+    })
+    token = login_resp["token"]
+    
+    # Use token with other services
+    await users_api.set_bearer_token(token)
+    await orders_api.set_bearer_token(token)
+    
+    # Test cross-service workflow
+    user = await users_api.get("/users/me")
+    order = await orders_api.post("/orders", data={
+        "user_id": user["id"],
+        "items": [{"product_id": 1, "quantity": 2}]
+    })
+    
+    assert order["user_id"] == user["id"]
+    assert order["status"] == "pending"
+
+
+# ============================================================================
+# Example 6: Switching Between Authenticated and Public Endpoints
+# ============================================================================
+@pytest.mark.asyncio
+async def test_mixed_auth_endpoints(api_client):
     """
     Some tests need to call both public and private endpoints.
     """
+    client = await api_client()
+    
     # Test public endpoint first
-    health = await api_client.get("/health")
+    health = await client.get("/health")
     assert health["status"] == "healthy"
     
     # Login to get token
-    login_resp = await api_client.post(
+    login_resp = await client.post(
         "/auth/login",
         data={"username": "test", "password": "test"}
     )
-    await api_client.set_bearer_token(login_resp["token"])
+    await client.set_bearer_token(login_resp["token"])
     
     # Test private endpoint
-    user_data = await api_client.get("/users/me")
+    user_data = await client.get("/users/me")
     assert user_data is not None
     
     # Clear auth and test public endpoint again
-    await api_client.clear_auth()
-    health2 = await api_client.get("/health")
+    await client.clear_auth()
+    health2 = await client.get("/health")
     assert health2["status"] == "healthy"
 
 
 # ============================================================================
-# Example 6: Custom Headers (Multi-Tenant, Request IDs, etc.)
+# Example 7: Custom Headers (Multi-Tenant, Request IDs, etc.)
 # ============================================================================
 @pytest.mark.asyncio
-async def test_custom_headers(api_client: APIClient):
+async def test_custom_headers(api_client):
     """
     APIs requiring additional headers beyond authentication.
     """
+    client = await api_client()
+    
     # Set authentication
-    await api_client.set_bearer_token(os.getenv("API_BEARER_TOKEN"))
+    await client.set_bearer_token(os.getenv("API_BEARER_TOKEN"))
     
     # Add custom headers for tenant, tracing, etc.
-    await api_client.set_extra_headers({
+    await client.set_extra_headers({
         "X-Tenant-ID": "tenant-123",
         "X-Request-ID": "req-456",
         "X-API-Version": "v2"
     })
     
-    response = await api_client.get("/tenant/data")
+    response = await client.get("/tenant/data")
     assert response is not None
 
 
 # ============================================================================
-# Example 7: Testing with Multiple User Roles
+# Example 8: Testing with Multiple User Roles
 # ============================================================================
 @pytest.mark.asyncio
-async def test_multiple_user_roles(api_client: APIClient):
+async def test_multiple_user_roles(api_client):
     """
     Test the same endpoint with different user tokens.
     """
+    client = await api_client()
+    
     # Login as admin
-    admin_login = await api_client.post(
+    admin_login = await client.post(
         "/auth/login",
         data={"username": "admin", "password": "admin_pass"}
     )
-    await api_client.set_bearer_token(admin_login["token"])
+    await client.set_bearer_token(admin_login["token"])
     
     # Admin can access all users
-    all_users = await api_client.get("/admin/users")
+    all_users = await client.get("/admin/users")
     assert len(all_users) > 0
     
     # Login as regular user
-    user_login = await api_client.post(
+    user_login = await client.post(
         "/auth/login",
         data={"username": "user", "password": "user_pass"}
     )
-    await api_client.set_bearer_token(user_login["token"])
+    await client.set_bearer_token(user_login["token"])
     
     # Regular user can only access their own data
-    my_data = await api_client.get("/users/me")
+    my_data = await client.get("/users/me")
     assert my_data["role"] == "user"
     
     # Regular user cannot access admin endpoint
     with pytest.raises(Exception):  # Should raise APIError with 403
-        await api_client.get("/admin/users", expected_status=403)
+        await client.get("/admin/users", expected_status=403)
 
 
 # ============================================================================
