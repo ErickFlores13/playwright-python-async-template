@@ -17,6 +17,7 @@ A **production-ready test automation framework** built with **Playwright + Pytho
 - � **Parallel execution:** Auto-configured via `PYTEST_WORKERS` environment variable
 - � **Smart screenshots:** Automatic capture on test failures
 - � **Docker ready:** Full containerization support for CI/CD
+- 🔧 **Pre-commit hooks:** Automated code quality checks (black, flake8, mypy, etc.)
 - 📚 **Comprehensive docs:** Detailed guides for UI, API, and database testing
 - � **Modular design:** Page Object Model with reusable components
 
@@ -117,6 +118,34 @@ pytest tests/test_ui_examples.py --headed -v
 pytest tests/ -n auto
 ```
 
+### 🔧 Pre-commit Hooks (Optional)
+
+Enable automatic code quality checks before commits:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install the git hooks
+pre-commit install
+
+# Run manually on all files
+pre-commit run --all-files
+```
+
+**Configured hooks:**
+- **black** - Code formatting (line length: 100)
+- **isort** - Import sorting
+- **flake8** - Code linting
+- **mypy** - Type checking
+- **bandit** - Security checks
+- **pydocstyle** - Docstring linting
+- **trailing-whitespace** - File cleanup
+- **check-yaml/json** - Config validation
+- **markdownlint** - Markdown formatting
+
+Pre-commit hooks run automatically on `git commit` and ensure consistent code quality across the team.
+
 ---
 
 ## 🏗️ Project Structure
@@ -159,6 +188,8 @@ playwright-python-async-template/
 ├── requirements.txt            # Python dependencies
 ├── Dockerfile                  # Docker configuration
 ├── docker-compose.yml          # Docker Compose orchestration
+├── .pre-commit-config.yaml     # Pre-commit hooks configuration
+├── pyproject.toml              # Python tooling configuration
 ├── .env.example               # Environment template
 └── README.md                   # This file
 ```
