@@ -624,3 +624,27 @@ async def test_complete_workflow_with_all_features(api_client: APIClient):
     
     # 7. Delete user
     await api_client.delete(f"/users/{user_id}")
+
+
+# ============================================================================
+# Example: API Mocking with APIClient.add_mock
+# ============================================================================
+import pytest
+
+@pytest.mark.asyncio
+async def test_api_mock_example(api_client):
+    """
+    Example: Mock /users endpoint using APIClient.add_mock
+    """
+    client = await api_client()
+    # Mock response for /users endpoint
+    await client.add_mock(
+        pattern="**/users",
+        response_body='[{"id": 1, "name": "Mock User"}]',
+        status=200,
+        headers={"Content-Type": "application/json"}
+    )
+    # Now any GET to /users will return the mocked response
+    response = await client.get("/users")
+    assert isinstance(response, list)
+    assert response[0]["name"] == "Mock User"
