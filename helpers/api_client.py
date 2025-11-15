@@ -671,3 +671,21 @@ class APIClient:
         
         logger.info(f"POST {endpoint} completed in {elapsed:.3f}s")
         return response, elapsed
+    
+    async def add_mock(self, pattern: str, response_body: str, status: int = 200, headers: dict = None):
+        """
+        Add a mock route to intercept API requests and return a custom response.
+        Args:
+            pattern (str): URL pattern to match (e.g., '**/users').
+            response_body (str): JSON string or response body to return.
+            status (int): HTTP status code for the mock response.
+            headers (dict, optional): Response headers. Defaults to application/json.
+        """
+        async def handler(route, request):
+            await route.fulfill(
+                status=status,
+                body=response_body,
+                headers=headers or {"Content-Type": "application/json"}
+            )
+
+        await self.request.page.route(pattern, handler)
