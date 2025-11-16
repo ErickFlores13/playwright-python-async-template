@@ -315,6 +315,39 @@ See `.env.example` for all available options.
 
 ---
 
+
+## 📊 Test Reporting with Allure
+
+Generate beautiful test reports using [Allure](https://docs.qameta.io/allure/):
+
+### Install Allure CLI
+
+```bash
+# Windows (Chocolatey)
+choco install allure
+# macOS (Homebrew)
+brew install allure
+# Linux (Snap)
+sudo snap install allure --classic
+```
+
+
+### Run Tests and Generate Report
+
+> **Note:** The Allure results directory (`--alluredir=allure-results`) is already configured in `pytest.ini`. You do not need to add it to your pytest command.
+
+```bash
+# Run your tests (no need to specify --alluredir)
+pytest
+
+# Generate HTML report
+allure generate allure-results --clean -o allure-report
+
+# Open the report in your browser
+allure open allure-report
+```
+
+---
 ## 🐳 Docker Support
 
 ### Quick Start
