@@ -12,7 +12,7 @@ License: MIT
 
 import pytest
 from playwright.async_api import Page
-from pages.login_page import LoginPage
+from pages.base_pages.login_page import LoginPage
 from pages.examples.demo_page import DemoPage
 
 

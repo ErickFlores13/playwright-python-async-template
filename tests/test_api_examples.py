@@ -292,7 +292,7 @@ async def test_ui_login_extract_token_for_api(page, api_client: APIClient):
     
     This ensures UI and API use the same authentication.
     """
-    from pages.base_page import BasePage
+    from pages.base_pages.base_page import BasePage
     
     base_page = BasePage(page)
     

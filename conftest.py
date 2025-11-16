@@ -29,7 +29,7 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 
 # Custom imports
 from helpers.redis_client import RedisClient
-from pages.login_page import LoginPage
+from pages.base_pages.login_page import LoginPage
 from helpers.database import DatabaseClient
 from helpers.api_client import APIClient
 from utils.config import Config

@@ -13,7 +13,7 @@ License: MIT
 """
 
 from playwright.async_api import Page
-from pages.standard_web_page import StandardWebPage
+from pages.base_pages.standard_web_page import StandardWebPage
 from utils.test_helpers import TestDataGenerator
 from typing import Optional, Callable
 import random
