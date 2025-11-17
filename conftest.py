@@ -76,7 +76,7 @@ def pytest_configure(config):
 
 # --- Pytest event loop fixture -------------------------------------------------
 @pytest_asyncio.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None]:
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create a dedicated asyncio event loop for the test session."""
     loop = asyncio.new_event_loop()
     yield loop
@@ -168,9 +168,9 @@ async def page(context: BrowserContext, pages_registry: list[Page]) -> AsyncGene
 
 # --- Login helpers ------------------------------------------------------------
 @pytest_asyncio.fixture
-async def login_to_environment():
-    async def _connect_to_environment(page: Page, username: str, password: str, url: str):
-        await LoginPage(page).change_user(username, password, url)
+async def login(page: Page):
+    async def _connect_to_environment(username: str, password: str, url: str):
+        return await LoginPage(page).login(username, password, url)
     return _connect_to_environment
 
 # DRY helper for login fixtures
@@ -181,8 +181,7 @@ async def _login_factory(browser: Browser, pages_registry, base_url_env: str):
         url = os.getenv(base_url_env)
         result_page = await LoginPage(page).login(username, password, base_url=url)
         pages_registry.append(result_page)
-        task = await add_502_handler(result_page)
-        return context, result_page, task
+        return context, result_page
     return _login
 
 @pytest_asyncio.fixture
@@ -246,7 +245,7 @@ def pytest_runtest_makereport(item, call):
                     allure.attach(f.read(), name=os.path.basename(filename), attachment_type=AttachmentType.PNG)
                 logger.info(f"📸 Screenshot captured and attached to Allure: {filename}")
             except Exception as e:
-                logger.error(f"Error capturing screenshot: {e}")
+                raise Exception(f"Error capturing screenshot: {e}") from e
 
 
 @pytest_asyncio.fixture
@@ -369,41 +368,3 @@ async def close_redis():
     """Automatically closes all Redis connections after each test."""
     yield
     await RedisClient.close_all()
-
-
-# --- 502 handler --------------------------------------------------------------
-async def add_502_handler(page: Page, max_retries: int = 10, timeout: float = 30.0):
-    """
-    Watches for HTTP 502 error popups and reloads the page when detected.
-    Runs as an async background task.
-    """
-    retries = 0
-    async def handle_reload():
-        nonlocal retries
-        if retries >= max_retries:
-            logger.warning("❌ Max retries reached for 502 recovery.")
-            return
-        retries += 1
-        logger.warning(f"⚠️ Detected 502 error. Attempting reload {retries}/{max_retries}...")
-        try:
-            await asyncio.wait_for(page.reload(), timeout=timeout)
-            await page.wait_for_load_state("domcontentloaded")
-            logger.info("✅ Page reloaded successfully.")
-        except asyncio.TimeoutError:
-            logger.error("Timeout while reloading page after 502.")
-        except Exception as e:
-            if "Target closed" in str(e) or "Page closed" in str(e):
-                logger.warning("Page or browser closed — stopping watcher.")
-                raise
-
-    async def watch_loop():
-        while retries < max_retries:
-            try:
-                if await page.locator("#error-information-popup-content > div.error-code").is_visible(timeout=1000):
-                    await handle_reload()
-            except Exception as e:
-                if "Target closed" in str(e) or "Page closed" in str(e):
-                    break
-            await asyncio.sleep(1)
-
-    return asyncio.create_task(watch_loop())
