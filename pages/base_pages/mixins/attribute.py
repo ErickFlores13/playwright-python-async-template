@@ -1,6 +1,7 @@
 import logging
 from utils.exceptions import ValidationError
 from typing import Literal, get_args
+from playwright.async_api import Page
 
 logger = logging.getLogger(__name__)
 
@@ -8,6 +9,8 @@ class AttributeMixin:
     """
     Mixin for manipulating HTML element attributes in Playwright tests.
     """
+
+    page: Page
 
     AttributeType = Literal[
     "required",
@@ -53,11 +56,10 @@ class AttributeMixin:
         self._validate_attribute(attribute)
         
         logger.debug(f"Removing attribute '{attribute}' from element: {selector}")
-        await self.page.wait_for_selector(selector, state="visible", timeout=timeout)
         locator = self.page.locator(selector)
+        await locator.wait_for(state="visible", timeout=timeout)
         await locator.evaluate(f"el => el.removeAttribute('{attribute}')")
         logger.debug(f"Successfully removed attribute '{attribute}' from element: {selector}")
-
 
     async def set_attribute(self, selector: str, attribute: AttributeType, value: str, timeout: float = None) -> None:
         """
@@ -84,12 +86,11 @@ class AttributeMixin:
         self._validate_attribute(attribute)
 
         logger.debug(f"Setting attribute '{attribute}' to '{value}' on element: {selector}")
-        await self.page.wait_for_selector(selector, state="visible", timeout=timeout)
         locator = self.page.locator(selector)
+        await locator.wait_for(state="visible", timeout=timeout)
         await locator.evaluate(f"el => el.setAttribute('{attribute}', '{value}')")
         logger.debug(f"Successfully set attribute '{attribute}' to '{value}' on element: {selector}")
 
-    
     def _validate_attribute(self, attribute: str):
         if attribute not in self.VALID_ATTRIBUTES:
             raise ValidationError(
