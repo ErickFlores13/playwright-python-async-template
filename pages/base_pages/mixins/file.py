@@ -1,36 +1,47 @@
 import logging
 import os
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
-from utils.exceptions import (
-    ValidationError,
-    ConfigurationError,
-)
+from playwright.async_api import Page, Locator
+from utils.exceptions import ValidationError
+from typing import Union
 
 logger = logging.getLogger(__name__)
 
 class FileMixin:
     """
-    Generic base page with overridable playwright methods that allow a custom-made test automation.
+    Mixin for handling file upload and download operations in Playwright tests.
     """
 
-    def __init__(self, page: Page) -> None:
-        if not page:
-            raise ConfigurationError(
-                config_key="page",
-                message="Page instance cannot be None or empty"
-            )
-            
-        self.page = page
+    page: Page
 
-    async def upload_files_with_preview_validation(self, file_input_selector: str, file_paths: list, 
-                                                 preview_selector: str) -> None:
+    def _resolve(self, selector: Union[str, Locator]) -> Locator:
         """
-        Uploads files and optionally validates preview elements.
+        Resolves a selector string or Locator to a Locator.
+
+        Args:
+            selector (Union[str, Locator]): Selector string or Locator. 
+
+        Returns: Locator
+        """
+        return selector if isinstance(selector, Locator) else self.page.locator(selector)
+
+    async def upload_files_with_preview_validation(self, 
+                                                   file_input: Union[str, Locator], 
+                                                   file_paths: list[str], 
+                                                   preview_element: Union[str, Locator],
+                                                   timeout: float = 30000) -> None:
+        """
+        Uploads files and validates preview elements.
         
         Args:
-            file_input_selector (str): CSS selector for the file input
+            file_input (Union[str, Locator]): selector or Locator for the file input element
             file_paths (list): List of absolute file paths to upload
-            preview_selector (str, optional): Selector for file preview elements
+            preview_element (Union[str, Locator]): Selector or Locator for file preview elements
+            timeout (float, optional): Maximum wait time (ms) for elements
+                to become visible. Defaults to Playwright's timeout.
+            
+        Raises:
+            ValidationError: if any file does not exist or preview count mismatches.
+            playwright.async_api.TimeoutError: if elements do not become visible in time.    
             
         Example:
             await page.upload_files_with_preview_validation(
@@ -39,54 +50,68 @@ class FileMixin:
                 '.file-preview'
             )
         """
-        # Ensure all files exist
-        import os
+        logger.debug(f"Uploading files: {file_paths} using input: {file_input}")
         for file_path in file_paths:
             if not os.path.exists(file_path):
                 raise ValidationError("file_upload", f"File not found: {file_path}")
         
-        await self.page.wait_for_selector(file_input_selector)
-        await self.page.set_input_files(file_input_selector, file_paths)
-        
-        # Wait for upload processing
-        await self.page.wait_for_timeout(1000)
-        
-        # Validate previews if selector provided
-        await self.page.wait_for_selector(preview_selector, timeout=10000)
-        preview_count = await self.page.locator(preview_selector).count()
-        
-        if preview_count != len(file_paths):
-            raise ValidationError("file_preview", 
-                                f"Expected {len(file_paths)} previews, found {preview_count}")
+        file_input_locator = self._resolve(file_input)
+        await file_input_locator.wait_for(state="visible", timeout=timeout)
 
-    async def handle_drag_and_drop_upload(self, drop_zone_selector: str, file_paths: list) -> None:
+        logger.debug(f"Setting files on input: {file_input}")
+        await file_input_locator.set_input_files(file_paths, timeout=timeout)
+        
+        logger.debug("Waiting for page to process uploads and display previews")
+        await self.wait_for_page_load(timeout=timeout)
+        
+        logger.debug(f"Validating {len(file_paths)} file previews using selector: {preview_element}")
+        preview_locator = self._resolve(preview_element)
+        await preview_locator.wait_for(state="visible", timeout=timeout)
+        preview_count = await preview_locator.count()
+        
+        logger.debug(f"Found {preview_count} file previews")
+        if preview_count != len(file_paths):
+            raise ValidationError("file_preview", f"Expected {len(file_paths)} previews, found {preview_count}")
+
+    async def handle_drag_and_drop_upload(self, 
+                                          drop_zone: Union[str, Locator], 
+                                          file_paths: list, 
+                                          timeout: float = 30000) -> None:
         """
         Handles drag-and-drop file uploads.
         
         Args:
-            drop_zone_selector (str): CSS selector for the drop zone
+            drop_zone (Union[str, Locator]): selector or Locator for the drop zone element
             file_paths (list): List of file paths to upload
+            timeout (float, optional): Maximum wait time (ms) for the drop zone
+                to become visible. Defaults to Playwright's timeout.
             
+        Raises:
+            ValidationError: if any file does not exist.
+            playwright.async_api.TimeoutError: if drop zone does not become visible in time.
+                
         Example:
             await page.handle_drag_and_drop_upload('#dropzone', ['/path/to/file.pdf'])
         """
-        await self.page.wait_for_selector(drop_zone_selector)
+        logger.debug(f"Handling drag-and-drop upload for files: {file_paths} into drop zone: {drop_zone}")
+        drop_zone_locator = self._resolve(drop_zone)
+        await drop_zone_locator.wait_for(state="visible", timeout=timeout)
         
-        # Validate all files exist first
         for file_path in file_paths:
             if not os.path.exists(file_path):
                 raise ValidationError("file_upload", f"File not found: {file_path}")
         
-        # Look for a hidden file input within the drop zone (more direct approach)
-        hidden_input_selector = f'{drop_zone_selector} input[type="file"]'
-        hidden_input = self.page.locator(hidden_input_selector).first
+        logger.debug(f"Simulating drag-and-drop for files: {file_paths}")
+        hidden_input = drop_zone_locator.locator('input[type="file"]').first
         
+        logger.debug("Checking for hidden file input within drop zone")
         if await hidden_input.count() > 0:
-            await hidden_input.set_input_files(file_paths)
+            await hidden_input.set_input_files(file_paths, timeout=timeout)
+            logger.debug("Files set via hidden input within drop zone")
         else:
+            logger.debug("No hidden file input found; simulating drag-and-drop directly on drop zone")
             # If no hidden input, simulate drag-drop on the drop zone directly
-            drop_zone_element = self.page.locator(drop_zone_selector)
-            await drop_zone_element.evaluate("""
+            await drop_zone_locator.evaluate("""
                 (element, files) => {
                     const dt = new DataTransfer();
                     files.forEach(file => {
@@ -103,13 +128,16 @@ class FileMixin:
                     element.dispatchEvent(event);
                 }
             """, file_paths)
+            logger.debug("Drag-and-drop event dispatched on drop zone")
 
-    async def download_file(self, download_trigger_selector: str, expected_filename: str = None) -> str:
+        logger.debug("Drag-and-drop upload simulation complete")
+
+    async def download_file(self, download_trigger: Union[str, Locator], expected_filename: str = None) -> str:
         """
         Triggers a file download and waits for it to complete.
         
         Args:
-            download_trigger_selector (str): Selector for the download button/link.
+            download_trigger (Union[str, Locator]): Selector or Locator for the download trigger element
             expected_filename (str, optional): Expected filename pattern to validate.
             
         Returns:
@@ -122,34 +150,31 @@ class FileMixin:
             file_path = await self.download_file('button#download', 'report.pdf')
             # File is saved and path is returned
         """
-        try:
-            async with self.page.expect_download() as download_info:
-                await self.page.click(download_trigger_selector)
-            
-            download = await download_info.value
-            
-            # Validate filename if provided
-            if expected_filename and expected_filename not in download.suggested_filename:
-                raise ValidationError(
-                    field=download_trigger_selector,
-                    message=f"Downloaded file '{download.suggested_filename}' does not match expected '{expected_filename}'"
-                )
-            
-            # Save to temp location
-            file_path = os.path.join(os.getcwd(), 'downloads', download.suggested_filename)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            await download.save_as(file_path)
-            
-            logger.info(f"File downloaded successfully: {file_path}")
-            return file_path
-            
-        except PlaywrightTimeoutError as e:
+        download_trigger_locator = self._resolve(download_trigger)
+        logger.debug(f"Initiating file download using trigger: {download_trigger}")
+        async with self.page.expect_download() as download_info:
+            await download_trigger_locator.click()
+        
+        logger.debug("Waiting for download to complete")
+        download = await download_info.value
+        
+        if expected_filename and expected_filename not in download.suggested_filename:
             raise ValidationError(
-                field=download_trigger_selector,
-                message="Download did not start within timeout"
-            ) from e
+                field=download_trigger,
+                message=f"Downloaded file '{download.suggested_filename}' does not match expected '{expected_filename}'"
+            )
+        
+        logger.debug(f"Saving downloaded file: {download.suggested_filename}")
+        file_path = os.path.join(os.getcwd(), 'downloads', download.suggested_filename)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        await download.save_as(file_path)
+        
+        logger.debug(f"File downloaded successfully: {file_path}")
+        return file_path
 
-    async def verify_file_downloaded(self, file_path: str, min_size_bytes: int = 0) -> bool:
+    async def verify_file_downloaded(self, 
+                                     file_path: str, 
+                                     min_size_bytes: int = 0) -> bool:
         """
         Verifies that a file exists and optionally checks its size.
         
@@ -163,6 +188,8 @@ class FileMixin:
         Raises:
             ValidationError: if file doesn't exist or is too small.
         """
+        logger.debug(f"Verifying downloaded file at: {file_path} with minimum size: {min_size_bytes} bytes")
+
         if not os.path.exists(file_path):
             raise ValidationError(
                 field=file_path,
@@ -170,19 +197,20 @@ class FileMixin:
             )
         
         file_size = os.path.getsize(file_path)
-        
+        logger.debug(f"Downloaded file size: {file_size} bytes")
+
         if file_size < min_size_bytes:
             raise ValidationError(
                 field=file_path,
                 message=f"File size {file_size} bytes is less than minimum {min_size_bytes} bytes"
             )
         
-        logger.info(f"File verified: {file_path} ({file_size} bytes)")
+        logger.debug(f"File verified: {file_path} ({file_size} bytes)")
         return True
 
     async def download_and_verify_file(
         self, 
-        download_trigger_selector: str, 
+        download_trigger: Union[str, Locator], 
         expected_filename: str = None,
         min_size_bytes: int = 0,
         cleanup: bool = True
@@ -191,7 +219,7 @@ class FileMixin:
         Complete workflow: download file, verify it, and optionally clean up.
         
         Args:
-            download_trigger_selector (str): Selector for download trigger.
+            download_trigger (Union[str, Locator]): Selector or locator for download trigger.
             expected_filename (str, optional): Expected filename pattern.
             min_size_bytes (int): Minimum file size in bytes.
             cleanup (bool): Whether to delete file after verification.
@@ -206,12 +234,16 @@ class FileMixin:
                 min_size_bytes=100
             )
         """
-        file_path = await self.download_file(download_trigger_selector, expected_filename)
+        logger.debug(f"Starting download and verification for trigger: {download_trigger}")
+        file_path = await self.download_file(download_trigger, expected_filename)
+    
+        logger.debug(f"Verifying downloaded file at: {file_path}")
         await self.verify_file_downloaded(file_path, min_size_bytes)
         
         if cleanup:
             os.remove(file_path)
-            logger.info(f"Cleaned up downloaded file: {file_path}")
+            logger.debug(f"Cleaned up downloaded file: {file_path}")
             return None
         
+        logger.debug(f"Download and verification complete for file: {file_path}")
         return file_path
