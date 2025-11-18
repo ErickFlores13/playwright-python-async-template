@@ -1,101 +1,113 @@
-import asyncio
 import logging
-from playwright.async_api import Page, expect, TimeoutError as PlaywrightTimeoutError
-from utils.exceptions import (
-    ElementNotFoundError, 
-    ValidationError,
-    ConfigurationError,
-)
+from playwright.async_api import expect, Page, Locator
+from typing import Union
 
 logger = logging.getLogger(__name__)
 
 class ElementStateMixin:
     """
-    Generic base page with overridable playwright methods that allow a custom-made test automation.
+    Mixin for verifying the state of HTML elements in Playwright tests.
     """
+    page: Page
+    
+    def _resolve(self, selector: Union[str, Locator]) -> Locator:
+        """
+        Resolves a selector string or Locator to a Locator.
 
-    def __init__(self, page: Page) -> None:
-        if not page:
-            raise ConfigurationError(
-                config_key="page",
-                message="Page instance cannot be None or empty"
-            )
-            
-        self.page = page
-        
-    async def is_visible(self, selector: str) -> None:
+        Args:
+            selector (Union[str, Locator]): Selector string or Locator. 
+
+        Returns: Locator
+        """
+        return selector if isinstance(selector, Locator) else self.page.locator(selector)
+
+    async def is_visible(self, selector: Union[str, Locator], timeout: float = None) -> None:
         """
         Verifies that an element is visible on the page.
-        
-        Raises:
-            ElementNotFoundError: if element is not found.
-            ValidationError: if element is not visible.
-        """
-        try:
-            element = self.page.locator(selector)
-            await expect(element).to_be_visible()
-        except AssertionError as e:
-            raise ValidationError(field=selector, message="Element is not visible") from e
-        except Exception as e:
-            raise ElementNotFoundError(selector, timeout=5000) from e
 
-    async def is_not_visible(self, selector: str) -> None:
+        Args:
+            selector (Union[str, Locator]): Selector or Locator for the element.
+            timeout (float, optional): Maximum time to wait for the element to be visible.
+
+        Raises:
+            playwright.async_api.TimeoutError: If the element does not become visible within the timeout.
+        
+        - Example:
+            await self.is_visible("#submit-button", timeout=5000)
+        """
+        logger.debug(f"Checking visibility for element: {selector}")
+        await expect(self._resolve(selector)).to_be_visible(timeout=timeout)
+        logger.debug(f"Element is visible: {selector}")
+
+    async def is_not_visible(self, selector: Union[str, Locator], timeout: float = None) -> None:
         """
         Verifies that an element is not visible on the page.
+
+        Args:
+            selector (Union[str, Locator]): Selector or Locator for the element.
+            timeout (float, optional): Maximum time to wait for the element to be not visible.
         
         Raises:
-            ValidationError: if element is unexpectedly visible.
+            playwright.async_api.TimeoutError: If the element does not become not visible within the timeout.
+        
+        - Example:
+            await self.is_not_visible("#loading-spinner", timeout=5000)
         """
-        try:
-            element = self.page.locator(selector)
-            await expect(element).not_to_be_visible()
-        except AssertionError as e:
-            raise ValidationError(field=selector, message="Element is unexpectedly visible") from e
+        logger.debug(f"Checking if element is not visible: {selector}")
+        await expect(self._resolve(selector)).not_to_be_visible(timeout=timeout)
+        logger.debug(f"Element is not visible: {selector}")
 
-    async def is_checked(self, selector: str) -> None:
+    async def is_checked(self, selector: Union[str, Locator], timeout: float = None) -> None:
         """
         Verifies that a checkbox or radio button is checked.
         
-        Raises:
-            ElementNotFoundError: if element is not found.
-            ValidationError: if element is not checked.
-        """
-        try:
-            element = self.page.locator(selector)
-            await expect(element).to_be_checked()
-        except AssertionError as e:
-            raise ValidationError(field=selector, message="Element is not checked") from e
-        except Exception as e:
-            raise ElementNotFoundError(selector, timeout=5000) from e
+        Args:
+            selector (Union[str, Locator]): Selector or Locator for the checkbox or radio button.
+            timeout (float, optional): Maximum time to wait for the element to be checked.
 
-    async def have_value(self, selector: str, value: str) -> None:
+        Raises:
+            playwright.async_api.TimeoutError: If the element does not become checked within the timeout.
+
+        - Example:
+            await self.is_checked("#agree-terms", timeout=5000)
+        """
+        logger.debug(f"Checking if element is checked: {selector}")
+        await expect(self._resolve(selector)).to_be_checked(timeout=timeout)
+        logger.debug(f"Element is checked: {selector}")
+
+    async def have_value(self, selector: Union[str, Locator], value: str, timeout: float = None) -> None:
         """
         Verifies that an input element has the expected value.
         
-        Raises:
-            ElementNotFoundError: if element is not found.
-            ValidationError: if element value doesn't match expected.
-        """
-        try:
-            element = self.page.locator(selector)
-            await expect(element).to_have_value(value)
-        except AssertionError as e:
-            actual_value = await element.input_value()
-            raise ValidationError(
-                field=selector, 
-                message=f"Expected value '{value}', but got '{actual_value}'"
-            ) from e
-        except Exception as e:
-            raise ElementNotFoundError(selector, timeout=5000) from e
+        Args:
+            selector (Union[str, Locator]): Selector or Locator for the input element.
+            value (str): Expected value of the input element.
+            timeout (float, optional): Maximum time to wait for the element to have the expected value.
 
-    async def is_hidden(self, selector: str) -> None:
+        Raises:
+            playwright.async_api.TimeoutError: If the element does not have the expected value within the timeout.
+
+        - Example:
+            await self.have_value("#username", "test_user", timeout=5000)
+        """
+        logger.debug(f"Checking if element '{selector}' has value: '{value}'")
+        await expect(self._resolve(selector)).to_have_value(value, timeout=timeout)
+        logger.debug(f"Element '{selector}' has the expected value: '{value}'")
+
+    async def is_hidden(self, selector: Union[str, Locator], timeout: float = None) -> None:
         """
         Verifies that an element is hidden on the page.
 
         Args:
-            selector (str): Selector for the element.
+            selector (Union[str, Locator]): Selector or Locator for the element.
+            timeout (float, optional): Maximum time to wait for the element to be hidden.
 
         Raises:
-            ValidationError: If element is unexpectedly visible.
+            playwright.async_api.TimeoutError: If the element does not become hidden within the timeout.
+
+        - Example:
+            await self.is_hidden("#popup-ad", timeout=5000)
         """
-        await expect(self.page.locator(selector)).to_be_hidden()   
+        logger.debug(f"Checking if element is hidden: {selector}")
+        await expect(self._resolve(selector)).to_be_hidden(timeout=timeout)   
+        logger.debug(f"Element is hidden: {selector}")
