@@ -26,6 +26,13 @@ class AttributeMixin:
 
     VALID_ATTRIBUTES = set(get_args(AttributeType))
 
+    def _validate_attribute(self, attribute: str):
+        if attribute not in self.VALID_ATTRIBUTES:
+            raise ValidationError(
+                field=attribute,
+                message=f"Invalid attribute '{attribute}'. Valid attributes are: {', '.join(self.VALID_ATTRIBUTES)}"
+            )
+
     async def remove_attribute(self, selector: str, attribute: AttributeType, timeout: float = None) -> None:
         """
         Remove an attribute from an element after ensuring it is visible.
@@ -90,10 +97,3 @@ class AttributeMixin:
         await locator.wait_for(state="visible", timeout=timeout)
         await locator.evaluate(f"el => el.setAttribute('{attribute}', '{value}')")
         logger.debug(f"Successfully set attribute '{attribute}' to '{value}' on element: {selector}")
-
-    def _validate_attribute(self, attribute: str):
-        if attribute not in self.VALID_ATTRIBUTES:
-            raise ValidationError(
-                field=attribute,
-                message=f"Invalid attribute '{attribute}'. Valid attributes are: {', '.join(self.VALID_ATTRIBUTES)}"
-            )
