@@ -11,7 +11,7 @@ class ElementStateMixin:
     """
     page: Page
 
-    async def is_visible(self, selector: Union[str, Locator], timeout: float = None) -> None:
+    async def is_visible(self, selector: Union[str, Locator], timeout: float = 30000) -> None:
         """
         Verifies that an element is visible on the page.
 
@@ -29,7 +29,7 @@ class ElementStateMixin:
         await expect(resolve_locator(self.page, selector)).to_be_visible(timeout=timeout)
         logger.debug(f"Element is visible: {selector}")
 
-    async def is_not_visible(self, selector: Union[str, Locator], timeout: float = None) -> None:
+    async def is_not_visible(self, selector: Union[str, Locator], timeout: float = 30000) -> None:
         """
         Verifies that an element is not visible on the page.
 
@@ -47,7 +47,7 @@ class ElementStateMixin:
         await expect(resolve_locator(self.page, selector)).not_to_be_visible(timeout=timeout)
         logger.debug(f"Element is not visible: {selector}")
 
-    async def is_checked(self, selector: Union[str, Locator], timeout: float = None) -> None:
+    async def is_checked(self, selector: Union[str, Locator], timeout: float = 30000) -> None:
         """
         Verifies that a checkbox or radio button is checked.
         
@@ -65,7 +65,7 @@ class ElementStateMixin:
         await expect(resolve_locator(self.page, selector)).to_be_checked(timeout=timeout)
         logger.debug(f"Element is checked: {selector}")
 
-    async def have_value(self, selector: Union[str, Locator], value: str, timeout: float = None) -> None:
+    async def have_value(self, selector: Union[str, Locator], value: str, timeout: float = 30000) -> None:
         """
         Verifies that an input element has the expected value.
         
@@ -84,7 +84,7 @@ class ElementStateMixin:
         await expect(resolve_locator(self.page, selector)).to_have_value(value, timeout=timeout)
         logger.debug(f"Element '{selector}' has the expected value: '{value}'")
 
-    async def is_hidden(self, selector: Union[str, Locator], timeout: float = None) -> None:
+    async def is_hidden(self, selector: Union[str, Locator], timeout: float = 30000) -> None:
         """
         Verifies that an element is hidden on the page.
 
