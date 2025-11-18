@@ -1,6 +1,7 @@
 import logging
 from playwright.async_api import Page, Locator
 from typing import Union
+from utils.playwright_utils import resolve_locator
 
 logger = logging.getLogger(__name__)
 
@@ -21,18 +22,6 @@ class ContentMixin:
     """
 
     page: Page
-
-    def _resolve(self, selector: Union[str, Locator]) -> Locator:
-        """
-        Resolves a selector string to a Locator.
-
-        Args:
-            selector (str): Selector string for the element.
-
-        Returns:
-            Locator
-        """
-        return selector if isinstance(selector, Locator) else self.page.locator(selector)
 
     async def get_text(self, selector: Union[str, Locator], timeout: float = 30000) -> str:
         """
@@ -56,7 +45,7 @@ class ContentMixin:
         """
         logger.debug(f"Attempting to get text from element: {selector}")
 
-        locator = self._resolve(selector)
+        locator = resolve_locator(self.page, selector)
         await locator.wait_for(state="visible", timeout=timeout)
 
         logger.debug(f"Successfully retrieved text from element: {selector}")
@@ -86,7 +75,7 @@ class ContentMixin:
         """
         logger.debug(f"Getting attribute '{attribute}' from element: {selector}")
 
-        locator = self._resolve(selector)
+        locator = resolve_locator(self.page, selector)
         await locator.wait_for(state="visible", timeout=timeout)
         attribute_value = await locator.get_attribute(attribute)
 
@@ -116,7 +105,7 @@ class ContentMixin:
         """
         logger.debug(f"Attempting to scroll element into view: {selector}")
 
-        locator = self._resolve(selector)
+        locator = resolve_locator(self.page, selector)
         await locator.wait_for(state="visible", timeout=timeout)
 
         logger.debug(f"Successfully scrolled element into view: {selector}")
@@ -145,7 +134,7 @@ class ContentMixin:
         """
         logger.debug(f"Getting inner HTML from element: {selector}")
 
-        locator = self._resolve(selector)
+        locator = resolve_locator(self.page, selector)
         await locator.wait_for(state="visible", timeout=timeout)
         html = await locator.inner_html()
 

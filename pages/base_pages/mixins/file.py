@@ -3,6 +3,7 @@ import os
 from playwright.async_api import Page, Locator
 from utils.exceptions import ValidationError
 from typing import Union
+from utils.playwright_utils import resolve_locator
 
 logger = logging.getLogger(__name__)
 
@@ -12,17 +13,6 @@ class FileMixin:
     """
 
     page: Page
-
-    def _resolve(self, selector: Union[str, Locator]) -> Locator:
-        """
-        Resolves a selector string or Locator to a Locator.
-
-        Args:
-            selector (Union[str, Locator]): Selector string or Locator. 
-
-        Returns: Locator
-        """
-        return selector if isinstance(selector, Locator) else self.page.locator(selector)
 
     async def upload_files_with_preview_validation(self, 
                                                    file_input: Union[str, Locator], 
@@ -55,7 +45,7 @@ class FileMixin:
             if not os.path.exists(file_path):
                 raise ValidationError("file_upload", f"File not found: {file_path}")
         
-        file_input_locator = self._resolve(file_input)
+        file_input_locator = resolve_locator(self.page, file_input)
         await file_input_locator.wait_for(state="visible", timeout=timeout)
 
         logger.debug(f"Setting files on input: {file_input}")
@@ -65,7 +55,7 @@ class FileMixin:
         await self.wait_for_page_load(timeout=timeout)
         
         logger.debug(f"Validating {len(file_paths)} file previews using selector: {preview_element}")
-        preview_locator = self._resolve(preview_element)
+        preview_locator = resolve_locator(self.page, preview_element)
         await preview_locator.wait_for(state="visible", timeout=timeout)
         preview_count = await preview_locator.count()
         
@@ -94,7 +84,7 @@ class FileMixin:
             await page.handle_drag_and_drop_upload('#dropzone', ['/path/to/file.pdf'])
         """
         logger.debug(f"Handling drag-and-drop upload for files: {file_paths} into drop zone: {drop_zone}")
-        drop_zone_locator = self._resolve(drop_zone)
+        drop_zone_locator = resolve_locator(self.page, drop_zone)
         await drop_zone_locator.wait_for(state="visible", timeout=timeout)
         
         for file_path in file_paths:
@@ -150,7 +140,7 @@ class FileMixin:
             file_path = await self.download_file('button#download', 'report.pdf')
             # File is saved and path is returned
         """
-        download_trigger_locator = self._resolve(download_trigger)
+        download_trigger_locator = resolve_locator(self.page, download_trigger)
         logger.debug(f"Initiating file download using trigger: {download_trigger}")
         async with self.page.expect_download() as download_info:
             await download_trigger_locator.click()

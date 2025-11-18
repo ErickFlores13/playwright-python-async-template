@@ -1,7 +1,9 @@
 import logging
 from utils.exceptions import ValidationError
 from typing import Literal, get_args
-from playwright.async_api import Page
+from playwright.async_api import Page, Locator
+from typing import Union
+from utils.playwright_utils import resolve_locator
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +35,12 @@ class AttributeMixin:
                 message=f"Invalid attribute '{attribute}'. Valid attributes are: {', '.join(self.VALID_ATTRIBUTES)}"
             )
 
-    async def remove_attribute(self, selector: str, attribute: AttributeType, timeout: float = None) -> None:
+    async def remove_attribute(self, selector: Union[str, Locator], attribute: AttributeType, timeout: float = 30000) -> None:
         """
         Remove an attribute from an element after ensuring it is visible.
 
         Args:
-            selector (str): Selector of the target element.
+            selector (Union[str, Locator]): Selector or Locator of the target element.
             attribute (str): The attribute to remove. Common valid values include:
             - "required"
             - "maxlength"
@@ -63,17 +65,17 @@ class AttributeMixin:
         self._validate_attribute(attribute)
         
         logger.debug(f"Removing attribute '{attribute}' from element: {selector}")
-        locator = self.page.locator(selector)
+        locator = resolve_locator(self.page, selector)
         await locator.wait_for(state="visible", timeout=timeout)
         await locator.evaluate(f"el => el.removeAttribute('{attribute}')")
         logger.debug(f"Successfully removed attribute '{attribute}' from element: {selector}")
 
-    async def set_attribute(self, selector: str, attribute: AttributeType, value: str, timeout: float = None) -> None:
+    async def set_attribute(self, selector: Union[str, Locator], attribute: AttributeType, value: str, timeout: float = 30000) -> None:
         """
         Set an attribute on an element after ensuring it is visible.
 
         Args:
-            selector (str): Selector of the target element.
+            selector (Union[str, Locator]): Selector or Locator of the target element.
             attribute (str): The attribute to set. Common valid values include:
             - "required"
             - "maxlength"
@@ -93,7 +95,7 @@ class AttributeMixin:
         self._validate_attribute(attribute)
 
         logger.debug(f"Setting attribute '{attribute}' to '{value}' on element: {selector}")
-        locator = self.page.locator(selector)
+        locator = resolve_locator(self.page, selector)
         await locator.wait_for(state="visible", timeout=timeout)
         await locator.evaluate(f"el => el.setAttribute('{attribute}', '{value}')")
         logger.debug(f"Successfully set attribute '{attribute}' to '{value}' on element: {selector}")
