@@ -19,118 +19,104 @@ class ContentMixin:
     Requirements:
         - Requires an initialized Playwright Page instance (self.page).
         - Should be composed with other mixins in a page object class.
-
-    Exception Handling:
-        - Raises ElementNotFoundError if a targeted element is not found or not visible.
     """
 
 
     async def get_text(self, selector: str , timeout: float = None) -> str:
         """
-        Returns the text content of the specified element after ensuring it is visible.
+        Retrieve the text content of an element after ensuring it is visible.
 
         Args:
             selector (str): Selector of the element.
+            timeout (float, optional): Maximum wait time (ms) for the element
+                to become visible. Defaults to Playwright's timeout.
 
         Returns:
-            str: Text content of the element.
+            str: The element's text content.
 
         Raises:
-            ElementNotFoundError: If the element is not found or not visible within the timeout.
-
-        Notes:
-            - Uses _wait_for_visible_element to ensure visibility before retrieving text.
+            playwright.async_api.TimeoutError: If the element does not become
+                visible within the specified timeout.
         """
         logger.debug(f"Attempting to get text from element: {selector}")
-        element = await self._wait_for_visible_element(selector, timeout=timeout)
+
+        await self.page.wait_for_selector(selector=selector, state="visible", timeout=timeout)
+        locator = self.page.locator(selector)
+
         logger.debug(f"Successfully retrieved text from element: {selector}")
-        return await element.inner_text()
+        return await locator.inner_text()
     
 
     async def get_attribute(self, selector: str, attribute: str, timeout: float = None) -> str:
         """
-        Returns the value of the specified attribute from the element after ensuring it is visible.
+        Retrieve the value of an attribute from an element after ensuring it is visible.
 
         Args:
-            selector (str): Selector of the element.
-            attribute (str): Name of the attribute.
+            selector (str): Selector of the target element.
+            attribute (str): Attribute name to retrieve.
+            timeout (float, optional): Maximum wait time (ms) for the element
+                to become visible. Defaults to Playwright's timeout.
 
         Returns:
-            str: Value of the attribute.
+            str | None: The attribute value, or None if the attribute does not exist.
 
         Raises:
-            ElementNotFoundError: If the element is not found or not visible within the timeout.
-
-        Notes:
-            - Uses _wait_for_visible_element to ensure visibility before retrieving the attribute value.
+            playwright.async_api.TimeoutError: If the element does not become
+                visible within the specified timeout.
         """
         logger.debug(f"Getting attribute '{attribute}' from element: {selector}")
-        element = await self._wait_for_visible_element(selector, timeout=timeout)
-        attribute_value = await element.get_attribute(attribute)
+
+        await self.page.wait_for_selector(selector=selector, state="visible", timeout=timeout)
+        locator = self.page.locator(selector)
+        attribute_value = await locator.get_attribute(attribute)
+
         logger.debug(f"Successfully retrieved attribute '{attribute}' from element: {selector} (value: {attribute_value})")
         return attribute_value
 
 
     async def scroll_into_view(self, selector: str, timeout: float = None) -> None:
         """
-        Scrolls the specified element into view after ensuring it is visible.
+        Scroll the target element into view after ensuring it is visible.
 
         Args:
             selector (str): Selector of the element to scroll into view.
+            timeout (float, optional): Maximum wait time (ms) for the element
+                to become visible. Defaults to Playwright's timeout.
 
         Raises:
-            ElementNotFoundError: If the element is not found or not visible within the timeout.
-
-        Notes:
-            - Uses _wait_for_visible_element to ensure visibility before scrolling.
+            playwright.async_api.TimeoutError: If the element does not become
+                visible within the specified timeout.
         """
         logger.debug(f"Attempting to scroll element into view: {selector}")
-        element = await self._wait_for_visible_element(selector, timeout=timeout)
+
+        await self.page.wait_for_selector(selector=selector, state="visible", timeout=timeout)
+        locator = self.page.locator(selector)
+
         logger.debug(f"Successfully scrolled element into view: {selector}")
-        await element.scroll_into_view_if_needed()
+        await locator.scroll_into_view_if_needed()
         
     
     async def get_html(self, selector: str, timeout: float = None) -> str:
         """
-        Returns the inner HTML of the specified element after ensuring it is visible.
+        Retrieve the inner HTML of an element after ensuring it is visible.
 
         Args:
             selector (str): Selector of the element.
+            timeout (float, optional): Maximum wait time (ms) for the element
+                to become visible. Defaults to Playwright's timeout.
 
         Returns:
-            str: Inner HTML of the element.
+            str: The element's inner HTML content.
 
         Raises:
-            ElementNotFoundError: If the element is not found or not visible within the timeout.
-
-        Notes:
-            - Uses _wait_for_visible_element to ensure visibility before retrieving inner HTML.
+            playwright.async_api.TimeoutError: If the element does not become
+                visible within the specified timeout.
         """
         logger.debug(f"Getting inner HTML from element: {selector}")
-        element = await self._wait_for_visible_element(selector, timeout=timeout)
-        html = await element.inner_html()
-        logger.debug(f"Inner HTML: {html}")
+
+        await self.page.wait_for_selector(selector=selector, state="visible", timeout=timeout)
+        locator = self.page.locator(selector)
+        html = await locator.inner_html()
+
+        logger.debug(f"Inner HTML from element {selector}: {html!r}")
         return html
-        
-        
-    async def _wait_for_visible_element(self, selector: str, timeout: float = None) -> Locator:
-        """
-        Waits for the element matching the selector to be visible and returns its locator.
-
-        Args:
-            selector (str): Selector of the element to wait for.
-
-        Returns:
-            Locator: Playwright locator for the visible element.
-
-        Raises:
-            ElementNotFoundError: If the element is not found or not visible within the timeout.
-
-        Notes:
-            - Uses Playwright's wait_for_selector with state="visible" for robust visibility checks.
-        """
-        try:
-            await self.page.wait_for_selector(selector, state="visible", timeout=timeout)
-            return self.page.locator(selector)
-        except PlaywrightTimeoutError as e:
-            raise ElementNotFoundError(selector) from e
