@@ -23,7 +23,13 @@ class AttributeMixin:
     "accept",
     "type",
     "pattern",
-    "disabled"
+    "disabled",
+    "readonly",
+    "multiple",
+    "step",
+    "checked",
+    "selected",
+    "value"
     ]
 
     VALID_ATTRIBUTES = set(get_args(AttributeType))
