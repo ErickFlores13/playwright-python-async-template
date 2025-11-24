@@ -1,18 +1,25 @@
 import logging
-from utils.exceptions import ValidationError
+from core.utils.exceptions import ValidationError, ConfigurationError
 from typing import Literal, get_args
 from playwright.async_api import Page, Locator
 from typing import Union
-from utils.playwright_utils import resolve_locator
+from core.utils.playwright_utils import resolve_locator
 
 logger = logging.getLogger(__name__)
 
-class AttributeMixin:
+class Attribute:
     """
-    Mixin for manipulating HTML element attributes in Playwright tests.
+    Service for manipulating HTML attributes on elements.
+    Provides methods to set and remove attributes after ensuring element visibility.
     """
 
-    page: Page
+    def __init__(self, page: Page):
+        if not page:
+            raise ConfigurationError(
+                config_key="page",
+                message="Page instance cannot be None or empty"
+            )
+        self.page = page
 
     AttributeType = Literal[
     "required",

@@ -1,18 +1,26 @@
 import logging
 import os
 from playwright.async_api import Page, Locator
-from utils.exceptions import ValidationError
+from core.utils.exceptions import ValidationError, ConfigurationError
 from typing import Union
-from utils.playwright_utils import resolve_locator
+from core.utils.playwright_utils import resolve_locator
 
 logger = logging.getLogger(__name__)
 
-class FileMixin:
+class FileHandler:
     """
-    Mixin for handling file upload and download operations in Playwright tests.
+    Service for handling file upload and download operations in Playwright tests.
+    Provides methods for uploading files with preview validation, handling drag-and-drop uploads,
+    Designed to be used as part of a modular Page Object Model for test automation.
     """
 
-    page: Page
+    def __init__(self, page: Page):
+        if not page:
+            raise ConfigurationError(
+                config_key="page",
+                message="Page instance cannot be None or empty"
+            )
+        self.page = page
 
     async def upload_files_with_preview_validation(self, 
                                                    file_input: Union[str, Locator], 

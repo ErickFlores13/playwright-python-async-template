@@ -1,6 +1,6 @@
 import logging
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
-from utils.exceptions import (
+from core.utils.exceptions import (
     ElementNotFoundError, 
     ValidationError,
     ConfigurationError,
@@ -8,9 +8,11 @@ from utils.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-class MouseMixin:
+class Mouse:
     """
-    Generic base page with overridable playwright methods that allow a custom-made test automation.
+    Service for mouse interactions in Playwright tests.
+    Provides methods for double-clicking, right-clicking, hovering, and drag-and-drop actions
+    Designed to be used as part of a modular Page Object Model for test automation.
     """
 
     def __init__(self, page: Page) -> None:
@@ -19,7 +21,6 @@ class MouseMixin:
                 config_key="page",
                 message="Page instance cannot be None or empty"
             )
-            
         self.page = page
 
     async def double_click(self, selector: str, timeout: int = 30000) -> None:

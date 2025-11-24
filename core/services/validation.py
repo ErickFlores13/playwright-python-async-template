@@ -1,7 +1,7 @@
 import logging
 from playwright.async_api import Page, expect, TimeoutError as PlaywrightTimeoutError
 from typing import Literal
-from utils.exceptions import (
+from core.utils.exceptions import (
     ElementNotFoundError, 
     ValidationError,
     ConfigurationError,
@@ -9,7 +9,7 @@ from utils.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-class ValidationMixin:
+class Validation:
     """
     Generic base page with overridable playwright methods that allow a custom-made test automation.
     """

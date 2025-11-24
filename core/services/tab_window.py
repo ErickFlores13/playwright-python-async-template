@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from playwright.async_api import Page
-from utils.exceptions import (
+from core.utils.exceptions import (
     ElementNotFoundError, 
     ValidationError,
     ConfigurationError,
@@ -9,7 +9,7 @@ from utils.exceptions import (
 
 logger = logging.getLogger(__name__)
 
-class TabWindowMixin:
+class TabWindow:
     """
     Generic base page with overridable playwright methods that allow a custom-made test automation.
     """

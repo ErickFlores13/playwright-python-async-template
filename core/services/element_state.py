@@ -1,15 +1,25 @@
 import logging
 from playwright.async_api import expect, Page, Locator
 from typing import Union
-from utils.playwright_utils import resolve_locator
+from core.utils.playwright_utils import resolve_locator
+from core.utils.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
-class ElementStateMixin:
+class ElementState:
     """
-    Mixin for verifying the state of HTML elements in Playwright tests.
+    Service for verifying the state of web elements.
+    Provides methods to check visibility, checked status, value presence, and hidden state.
+    Designed to be used as part of a modular Page Object Model for test automation.
     """
-    page: Page
+
+    def __init__(self, page: Page):
+        if not page:
+            raise ConfigurationError(
+                config_key="page",
+                message="Page instance cannot be None or empty"
+            )
+        self.page = page
 
     async def is_visible(self, selector: Union[str, Locator], timeout: float = 30000) -> None:
         """

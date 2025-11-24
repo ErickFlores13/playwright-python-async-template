@@ -1,13 +1,13 @@
 import logging
 from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
-from utils.exceptions import (
+from core.utils.exceptions import (
     ElementNotFoundError, 
     ConfigurationError,
 )
 
 logger = logging.getLogger(__name__)
 
-class WaitMixin:
+class Wait:
     """
     Generic base page with overridable playwright methods that allow a custom-made test automation.
     """
@@ -23,22 +23,13 @@ class WaitMixin:
         
 
     async def wait_for_page_load(self, timeout: int = 30000) -> None:
-        """
-        Waits for the page to fully load including network requests.
+        logger.debug("Waiting for page full load (networkidle preferred)")
 
-        Args:
-            timeout (int): Timeout in milliseconds (default: 30000).
-            
-        Raises:
-            ElementNotFoundError: if page doesn't load within timeout.
-        """
         try:
             await self.page.wait_for_load_state("networkidle", timeout=timeout)
+            logger.debug("Page reached networkidle state")
+        except PlaywrightTimeoutError:
+            logger.warning("Networkidle not reached, falling back to domcontentloaded")
             await self.page.wait_for_load_state("domcontentloaded", timeout=timeout)
-            logger.info("Page loaded successfully")
-        except PlaywrightTimeoutError as e:
-            await self.take_screenshot("page_load_timeout")
-            raise ElementNotFoundError("page", timeout=timeout) from e
-        except Exception as e:
-            await self.take_screenshot("page_load_error")
-            raise ElementNotFoundError("page", timeout=timeout) from e
+
+        logger.debug("Page loaded successfully")

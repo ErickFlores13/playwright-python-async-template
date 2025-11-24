@@ -1,27 +1,25 @@
 import logging
 from playwright.async_api import Page, Locator
 from typing import Union
-from utils.playwright_utils import resolve_locator
+from core.utils.playwright_utils import resolve_locator
+from core.utils.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
-class ContentMixin:
+class Content:
     """
-    Mixin for Playwright page content manipulation and retrieval.
-
+    Service for Playwright page content manipulation and retrieval.
     Provides generic, reusable async methods for interacting with and extracting content from web elements.
     Designed to be used as part of a modular Page Object Model for test automation.
-
-    Features:
-        - Retrieve text content, inner HTML, or attributes from elements with visibility ensured.
-        - Scroll elements into view for reliable interaction.
-
-    Requirements:
-        - Requires an initialized Playwright Page instance (self.page).
-        - Should be composed with other mixins in a page object class.
     """
 
-    page: Page
+    def __init__(self, page: Page):
+        if not page:
+            raise ConfigurationError(
+                config_key="page",
+                message="Page instance cannot be None or empty"
+            )
+        self.page = page
 
     async def get_text(self, selector: Union[str, Locator], timeout: float = 30000) -> str:
         """

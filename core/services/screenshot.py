@@ -1,10 +1,10 @@
 import logging
 from playwright.async_api import Page
-from utils.exceptions import ConfigurationError
+from core.utils.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
-class ScreenshotMixin:
+class Screenshot:
     """
     Generic base page with overridable playwright methods that allow a custom-made test automation.
     """
@@ -41,7 +41,7 @@ class ScreenshotMixin:
         screenshot_path = os.path.join(screenshots_dir, f"{name}.png")
         await self.page.screenshot(path=screenshot_path, full_page=True)
         
-        logger.info(f"Screenshot saved: {screenshot_path}")
+        logger.debug(f"Screenshot saved: {screenshot_path}")
         return screenshot_path
 
     async def highlight_element(self, selector: str, duration: int = 2000) -> None:

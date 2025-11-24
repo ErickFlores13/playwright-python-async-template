@@ -1,13 +1,13 @@
 import logging
 from playwright.async_api import Page
-from utils.exceptions import (
+from core.utils.exceptions import (
     ValidationError,
     ConfigurationError,
 )
 
 logger = logging.getLogger(__name__)
 
-class StorageMixin:
+class Storage:
     """
     Generic base page with overridable playwright methods that allow a custom-made test automation.
     """
@@ -48,7 +48,7 @@ class StorageMixin:
             'domain': domain,
             'path': path
         }])
-        logger.info(f"Cookie set: {name}={value}")
+        logger.debug(f"Cookie set: {name}={value}")
 
     async def get_cookie(self, name: str) -> dict:
         """
@@ -95,14 +95,14 @@ class StorageMixin:
         
         await self.page.context.clear_cookies()
         await self.page.context.add_cookies(filtered_cookies)
-        logger.info(f"Cookie deleted: {name}")
+        logger.debug(f"Cookie deleted: {name}")
 
     async def clear_all_cookies(self) -> None:
         """
         Clears all cookies from the browser context.
         """
         await self.page.context.clear_cookies()
-        logger.info("All cookies cleared")
+        logger.debug("All cookies cleared")
 
     async def set_local_storage(self, key: str, value: str) -> None:
         """
@@ -118,7 +118,7 @@ class StorageMixin:
         await self.page.evaluate(
             f"() => window.localStorage.setItem('{key}', '{value}')"
         )
-        logger.info(f"localStorage set: {key}={value}")
+        logger.debug(f"localStorage set: {key}={value}")
 
     async def get_local_storage(self, key: str) -> str:
         """
@@ -163,14 +163,14 @@ class StorageMixin:
         await self.page.evaluate(
             f"() => window.localStorage.removeItem('{key}')"
         )
-        logger.info(f"localStorage removed: {key}")
+        logger.debug(f"localStorage removed: {key}")
 
     async def clear_local_storage(self) -> None:
         """
         Clears all localStorage items.
         """
         await self.page.evaluate("() => window.localStorage.clear()")
-        logger.info("localStorage cleared")
+        logger.debug("localStorage cleared")
 
     async def set_session_storage(self, key: str, value: str) -> None:
         """
@@ -183,7 +183,7 @@ class StorageMixin:
         await self.page.evaluate(
             f"() => window.sessionStorage.setItem('{key}', '{value}')"
         )
-        logger.info(f"sessionStorage set: {key}={value}")
+        logger.debug(f"sessionStorage set: {key}={value}")
 
     async def get_session_storage(self, key: str) -> str:
         """
@@ -205,7 +205,7 @@ class StorageMixin:
         Clears all sessionStorage items.
         """
         await self.page.evaluate("() => window.sessionStorage.clear()")
-        logger.info("sessionStorage cleared")
+        logger.debug("sessionStorage cleared")
 
     async def clear_all_storage(self) -> None:
         """
@@ -215,4 +215,4 @@ class StorageMixin:
         await self.clear_all_cookies()
         await self.clear_local_storage()
         await self.clear_session_storage()
-        logger.info("All storage cleared (cookies, localStorage, sessionStorage)")
+        logger.debug("All storage cleared (cookies, localStorage, sessionStorage)")
