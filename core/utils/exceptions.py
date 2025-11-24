@@ -54,6 +54,23 @@ class ValidationError(Exception):
         super().__init__(error_message)
 
 
+class FormFillingError(Exception):
+    """Base exception for all form-filling related errors."""
+    def __init__(self, message: str, field_selector: str = None, cause: Exception = None):
+        self.field_selector = field_selector
+        self.cause = cause
+        super().__init__(self._build_message(message))
+
+    def _build_message(self, message: str) -> str:
+        base = f"[FormFillingError]"
+        if self.field_selector:
+            base += f" Field: '{self.field_selector}'."
+        base += f" {message}"
+        if self.cause:
+            base += f" Cause: {repr(self.cause)}"
+        return base
+
+
 class Select2Error(Exception):
     """
     Raised when Select2 component interactions fail.
@@ -62,14 +79,14 @@ class Select2Error(Exception):
     such as option not found, dropdown not opening, etc.
     """
     
-    def __init__(self, selector: str, operation: str, message: str = None):
+    def __init__(self, selector: str,  message: str, cause: Optional[Exception] = None):
         self.selector = selector
-        self.operation = operation
+        self.cause = cause
         
-        if message:
-            error_message = f"Select2 error on '{selector}' during '{operation}': {message}"
+        if cause:
+            error_message = f"[Select2] error for field '{selector}': {message} | Cause: {str(cause)}"
         else:
-            error_message = f"Select2 error on '{selector}' during '{operation}'"
+            error_message = f"[Select2] error for field '{selector}': {message}"
             
         super().__init__(error_message)
 
