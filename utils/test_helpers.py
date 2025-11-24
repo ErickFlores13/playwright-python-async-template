@@ -79,6 +79,33 @@ class TestDataGenerator:
         return past_date.strftime(date_format)
     
     @staticmethod
+    def format_date_in_spanish(date_obj: datetime):
+        """
+        Formats a given datetime object into a date string in Spanish.
+
+        Args:
+            date_obj (datetime): The datetime object to be formatted.
+
+        Returns:
+            The formatted date string in the format "day de month de year", where month is the Spanish name of the month.
+        """
+        date_obj = datetime.strptime(date_obj, "%Y-%m-%d")
+        
+        # Map month numbers to their Spanish names
+        months = [
+            "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+            "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+        ]
+        
+        # Format the date in the desired format
+        day = date_obj.day
+        month = months[date_obj.month - 1]
+        year = date_obj.year
+        
+        return f"{day} de {month} de {year}"
+
+
+    @staticmethod
     def random_number(min_val: int = 1, max_val: int = 1000) -> int:
         """Generate a random number within specified range."""
         return random.randint(min_val, max_val)
