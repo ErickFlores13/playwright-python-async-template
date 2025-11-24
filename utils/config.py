@@ -140,7 +140,7 @@ class Config:
     
     # ========== Test Execution Settings ==========
     @staticmethod
-    def get_test_timeout() -> int:
+    def get_timeout() -> int:
         """Get test timeout in milliseconds."""
         return int(os.getenv('TIMEOUT', '30000'))
     
