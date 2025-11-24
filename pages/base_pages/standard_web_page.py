@@ -1,7 +1,7 @@
 from playwright.async_api import Page, expect
-from pages.base_pages.base_page import BasePage
+from core.base_page import BasePage
 from utils.consts import FilterType, ButtonOperations, ValidationType
-from utils.exceptions import ElementNotFoundError, ValidationError
+from core.utils.exceptions import ElementNotFoundError, ValidationError
 from typing import Literal, Callable, Any
 
 
@@ -103,25 +103,42 @@ class StandardWebPage(BasePage):
         await self.page.click(filter_button_selector)
 
 
-    async def delete_item(self, delete_button_selector: str, confirm_delete_button_selector: str = None) -> None:
+    async def delete_item(
+        self,
+        delete_button_selector: str,
+        confirm_delete_button_selector: str = None,
+        justify_selector: str = None,
+        justify_data: dict = None
+    ) -> None:
         """
-        Deletes an item by clicking the delete button and confirming the action.
+        Deletes an item by clicking the delete button, optionally filling justification, and confirming the action.
 
         Args:
             delete_button_selector (str): Selector for the delete button.
             confirm_delete_button_selector (str, optional): Selector for the confirmation button.
-                                                        If None, no confirmation step is performed.
+                If None, no confirmation step is performed.
+            justify_selector (str, optional): Selector for the justification field/container.
+            justify_data (dict, optional): Dictionary of justification field selectors and values to fill.
 
         Behavior:
             1. Clicks the delete button associated with the item.
-            2. If confirmation selector is provided, clicks the confirmation button to finalize deletion.
+            2. If justification is required, fills justification fields.
+            3. If confirmation selector is provided, clicks the confirmation button to finalize deletion.
 
         Notes:
             - Assumes that the delete button is visible and interactable.
             - If there is a modal after the first click and confirm_delete_button_selector is provided, 
-            it will handle it automatically.
+              it will handle it automatically.
+            - If justification is required, provide justify_selector and justify_data.
         """
         await self.page.click(delete_button_selector)
+
+        # If justification is required, fill justification fields
+        if justify_selector and justify_data:
+            await self.wait_for_page_load()
+            justify_element = self.page.locator(justify_selector)
+            if await justify_element.is_visible():
+                await self.fill_data({justify_selector:justify_data})
 
         if confirm_delete_button_selector:
             confirm_selector = self.page.locator(confirm_delete_button_selector)
@@ -487,9 +504,9 @@ class StandardWebPage(BasePage):
             data (Dict[str, Any] | None): Optional dictionary with expected data to validate.
         """
         await search_method()
-        await self.wait_for_selector(delete_button_selector)
+        await self.page.wait_for_selector(delete_button_selector)
         await self.page.locator(delete_button_selector).first.click()
-        await self.wait_for_selector(cancel_selector)
+        await self.page.wait_for_selector(cancel_selector)
         await self.page.click(cancel_selector)
         if data:
             await self.validate_edit_view_item_information(data, self)
@@ -513,7 +530,7 @@ class StandardWebPage(BasePage):
         else:
             await search_method()
 
-        await self.wait_for_selector(enable_button_selector)
+        await self.page.wait_for_selector(enable_button_selector)
         await self.page.locator(enable_button_selector).first.click()
         await self.page.click(cancel_selector)
         if data:
@@ -597,7 +614,7 @@ class StandardWebPage(BasePage):
             data = await page.extract_table_data('table.data-table')
             # Returns: [{'Name': 'John', 'Email': 'john@example.com'}, ...]
         """
-        await self.wait_for_selector(table_selector)
+        await self.page.wait_for_selector(table_selector)
         
         if not headers:
             # Extract headers from table
