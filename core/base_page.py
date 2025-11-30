@@ -12,10 +12,12 @@ from core.services.form_filling.strategy_factory import StrategyFactory
 from core.services.form_filling.element_resolver import ElementResolver
 from utils.config import Config
 
+from playwright.async_api import Page
+
 class BasePage():
     
     """BasePage class that combines all services for comprehensive page interactions."""
-    def __init__(self, page):
+    def __init__(self, page: Page):
         self.page = page
         self.element_resolver = ElementResolver(page)
         self.strategy_factory = StrategyFactory(self.element_resolver)
