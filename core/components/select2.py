@@ -1,10 +1,13 @@
 import logging
 import re
-from playwright.async_api import Page, Locator, TimeoutError, expect
 from typing import List, Optional, Union
-from core.utils.exceptions import Select2Error, ConfigurationError
+
+from playwright.async_api import Locator, Page, TimeoutError, expect
+
+from core.utils.exceptions import ConfigurationError, Select2Error
 
 logger = logging.getLogger(__name__)
+
 
 class Select2Component:
     """
@@ -16,7 +19,7 @@ class Select2Component:
         self.page = page
         self.selector = selector
         self.timeout = timeout
-        self.root = None  # Will be set by create() factory method
+        self.root: Optional[Locator] = None  # Will be set by create() factory method
 
     # -----------------------------
     # Core Select2 locators
@@ -30,32 +33,32 @@ class Select2Component:
     def results(self) -> Locator:
         """Locator for the results list inside the dropdown."""
         return self.page.locator(".select2-results__option")
-    
+
     @property
     def multi_field_textarea(self) -> Locator:
         """Locator for the multi-select search textarea field."""
         return self.root.locator("textarea.select2-search__field")
-    
+
     @property
     def single_field_input(self) -> Locator:
         """Locator for the single-select search input field."""
-        return self.page.locator("input.select2-search__field") # note: outside root
-    
+        return self.page.locator("input.select2-search__field")  # note: outside root
+
     @property
     def single_value_display(self) -> Locator:
         """Locator for the selected value in single-select."""
         return self.root.locator("span.select2-selection__rendered")
-    
+
     @property
     def multi_value_display(self) -> Locator:
         """Locator for all the selected values in multi-select."""
         return self.root.locator(".select2-selection__choice__display")
-    
+
     @property
     def multi_selected_choices(self) -> Locator:
         """Locator for specific selected choices in multi-select."""
         return self.root.locator("li.select2-selection__choice")
-    
+
     @property
     def clear_all(self) -> Locator:
         """Locator for the clear-all button."""
@@ -65,7 +68,7 @@ class Select2Component:
     def single_clear(self) -> Locator:
         """Locator for the single clear button."""
         return self.root.locator(".select2-selection__choice__remove")
-    
+
     @classmethod
     async def create(cls, page: Page, selector: str, timeout: int = 5000) -> "Select2Component":
         """
@@ -104,7 +107,7 @@ class Select2Component:
 
         raise Select2Error(
             selector=self.selector,
-            message="No visible Select2 search field found (multi or single select)."
+            message="No visible Select2 search field found (multi or single select).",
         )
 
     # -----------------------------
@@ -116,7 +119,7 @@ class Select2Component:
         if await self.is_open():
             logger.debug(f"[Select2] Dropdown already open: ({self.dropdown})")
             return
-        
+
         logger.debug(f"[Select2] Opening Select2 ({self.selector})")
         await self.root.click()
 
@@ -126,7 +129,7 @@ class Select2Component:
             raise Select2Error(
                 selector=self.root,
                 message="Search field did not become visible after opening Select2.",
-                cause=e
+                cause=e,
             )
 
     async def is_open(self) -> bool:
@@ -139,9 +142,9 @@ class Select2Component:
         """
         if await self.dropdown.is_visible():
             logger.debug(f"[Select2] Dropdown visible, closing: ({self.dropdown})")
-            await self.page.keyboard.press("Escape") # try to close with Escape
-            if await self.dropdown.is_visible(): 
-                await self.root.click() # try to close by clicking outside if escape didn't work
+            await self.page.keyboard.press("Escape")  # try to close with Escape
+            if await self.dropdown.is_visible():
+                await self.root.click()  # try to close by clicking outside if escape didn't work
 
         try:
             await self.dropdown.wait_for(state="hidden", timeout=self.timeout)
@@ -149,7 +152,7 @@ class Select2Component:
             raise Select2Error(
                 selector=self.dropdown,
                 message="Dropdown did not close after attempting to close Select2.",
-                cause=e
+                cause=e,
             )
 
     async def search(self, query: str) -> None:
@@ -167,7 +170,7 @@ class Select2Component:
             raise Select2Error(
                 selector=self.dropdown,
                 message=f"Dropdown did not show results after searching for '{query}'.",
-                cause=e
+                cause=e,
             )
 
     async def select(self, value: str) -> None:
@@ -185,26 +188,27 @@ class Select2Component:
 
         if await option_locator.count() > 0:
             logger.debug(f"[Select2] Selecting existing option '{value}'")
-            await option_locator.first.click() # select existing option
+            await option_locator.first.click()  # select existing option
         else:
             logger.debug(f"[Select2] Option '{value}' not found, attempting to create it.")
-            await self.page.keyboard.press("Enter") # try to create new option or do nothing
+            await self.page.keyboard.press("Enter")  # try to create new option or do nothing
 
         if await self.get_value():
             logger.debug(f"[Select2] Successfully selected or created option '{value}'")
             await self.close()
         else:
             raise Select2Error(
-                selector=self.selector,
-                message=f"Failed to select or create option '{value}'."
-            )        
+                selector=self.selector, message=f"Failed to select or create option '{value}'."
+            )
 
     async def clear(self) -> None:
         """Clears the current selection(s)."""
 
         # Close dropdown if open
         if await self.dropdown.is_visible():
-            logger.debug(f"[Select2] Dropdown: {self.dropdown} is open, closing before clearing selections.")
+            logger.debug(
+                f"[Select2] Dropdown: {self.dropdown} is open, closing before clearing selections."
+            )
             await self.close()
 
         # Try clear all
@@ -215,12 +219,26 @@ class Select2Component:
 
         # Try per-item clear (for multi-select without clear-all button)
         if await self.single_clear.is_visible():
-            logger.debug(f"[Select2] Using per-item clear buttons: {self.single_clear} to clear selections.")
-            while await self.single_clear.count() > 0: # loop to remove all
+            logger.debug(
+                f"[Select2] Using per-item clear buttons: {self.single_clear} to clear selections."
+            )
+            max_attempts = 50  # Safety limit to prevent infinite loops
+            attempts = 0
+            while await self.single_clear.count() > 0 and attempts < max_attempts:
                 await self.single_clear.nth(0).click()
+                attempts += 1
+                await self.page.wait_for_timeout(100)  # Small delay for DOM update
+
+            if attempts >= max_attempts:
+                logger.warning(
+                    f"[Select2] Reached max attempts ({max_attempts}) clearing selections"
+                )
+            return
 
         # Nothing to clear
-        logger.debug(f"[Select2] No clear button in {self.selector} available to clear selections, nothing to clear.")
+        logger.debug(
+            f"[Select2] No clear button in {self.selector} available to clear selections, nothing to clear."
+        )
         return
 
     async def validate_cleared(self) -> None:
@@ -233,7 +251,7 @@ class Select2Component:
         # Validate: expect 0 selected choices (li.select2-selection__choice)
         logger.debug(f"[Select2] Validating that Select2 ({self.selector}) is cleared.")
         await expect(self.multi_selected_choices).to_have_count(0, timeout=self.timeout)
-       
+
     async def clear_and_validate(self) -> None:
         """Clears the Select2 and validates that it is cleared."""
         await self.clear()
@@ -255,7 +273,7 @@ class Select2Component:
             return text
 
         return None
-    
+
     async def get_options(self) -> List[str]:
         """Return a list of all options currently visible."""
 
@@ -266,21 +284,27 @@ class Select2Component:
         logger.debug(f"[Select2] Found options: {options}")
 
         return [opt.strip() for opt in options]
-    
+
     async def _resolve_select2_root(self, locator: Locator) -> Locator:
         """Given a Locator, identify and return the Select2 root container Locator."""
         # --- CASE 1: element is inside static container ---
         closest_container = locator.locator("closest=.select2-container")
         if await closest_container.count() > 0:
-            logger.debug(f"[Select2] Found Select2 container via closest(): {closest_container.first}")
+            logger.debug(
+                f"[Select2] Found Select2 container via closest(): {closest_container.first}"
+            )
             return closest_container.first
 
         # --- CASE 2: original <select> passed ---
         is_select = await locator.evaluate("el => el.tagName.toLowerCase() === 'select'")
         if is_select:
-            sibling = locator.locator("xpath=following-sibling::*[contains(@class, 'select2-container')]")
+            sibling = locator.locator(
+                "xpath=following-sibling::*[contains(@class, 'select2-container')]"
+            )
             if await sibling.count() > 0:
-                logger.debug(f"[Select2] Found Select2 container via sibling of <select>: {sibling.first}")
+                logger.debug(
+                    f"[Select2] Found Select2 container via sibling of <select>: {sibling.first}"
+                )
                 return sibling.first
 
         # --- CASE 3: wrapper div passed ---
@@ -294,10 +318,10 @@ class Select2Component:
         if in_popup:
             raise ConfigurationError(
                 config_key="select2",
-                message="Invalid locator: do not pass dynamic dropdown inputs."
+                message="Invalid locator: do not pass dynamic dropdown inputs.",
             )
 
         raise ConfigurationError(
             config_key="select2",
-            message="Cannot identify Select2 root. Pass parent div, original <select>, or static child."
+            message="Cannot identify Select2 root. Pass parent div, original <select>, or static child.",
         )
