@@ -2,7 +2,7 @@ import logging
 from typing import Any
 from core.services.form_filling.base_strategy import BaseFieldStrategy
 from core.services.form_filling.field import Field
-from core.componentes.select import SelectComponent
+from core.components.select import SelectComponent
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +22,8 @@ class SelectStrategy(BaseFieldStrategy):
         else:
             raise TypeError(f"Select field expects str, got {type(value).__name__}")
 
-    async def clear(self, field: Field) -> None:
-        """Clear the select field (reset to empty)."""
+    async def clear_and_validate(self, field: Field) -> None:
+        """Clear and validate the select field."""
         logger.debug(f"[SelectStrategy] Clearing select field {field.selector}")
         component = SelectComponent(field.locator.page, field.selector)
-        await component.select_by_text("")  # resets to empty
+        await component.clear_and_validate()

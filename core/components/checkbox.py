@@ -1,5 +1,5 @@
 import logging
-from playwright.async_api import Page, Locator
+from playwright.async_api import Page, Locator, expect
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,15 @@ class CheckboxComponent:
         if await self.locator.is_checked():
             logger.debug(f"[Checkbox] Unchecking {self.selector}")
             await self.locator.uncheck()
+
+    async def validate_unchecked(self) -> None:
+        """Validate that the checkbox is unchecked."""
+        await expect(self.locator).not_to_be_checked()
+
+    async def uncheck_and_validate(self) -> None:
+        """Uncheck the checkbox and validate it is unchecked."""
+        await self.uncheck()
+        await self.validate_unchecked()
 
     async def toggle(self) -> None:
         """Toggle the checkbox state."""

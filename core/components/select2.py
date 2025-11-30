@@ -1,6 +1,6 @@
 import logging
 import re
-from playwright.async_api import Page, Locator, TimeoutError
+from playwright.async_api import Page, Locator, TimeoutError, expect
 from typing import List, Optional, Union
 from core.utils.exceptions import Select2Error, ConfigurationError
 
@@ -16,41 +16,54 @@ class Select2Component:
         self.page = page
         self.selector = selector
         self.timeout = timeout
-        self.root: Optional[Locator] = None
+        self.root = None  # Will be set by create() factory method
 
     # -----------------------------
     # Core Select2 locators
     # -----------------------------
     @property
     def dropdown(self) -> Locator:
+        """Locator for the Select2 dropdown popup."""
         return self.page.locator(".select2-dropdown")
 
     @property
     def results(self) -> Locator:
+        """Locator for the results list inside the dropdown."""
         return self.page.locator(".select2-results__option")
     
     @property
     def multi_field_textarea(self) -> Locator:
+        """Locator for the multi-select search textarea field."""
         return self.root.locator("textarea.select2-search__field")
     
     @property
     def single_field_input(self) -> Locator:
+        """Locator for the single-select search input field."""
         return self.page.locator("input.select2-search__field") # note: outside root
     
     @property
     def single_value_display(self) -> Locator:
-        return self.root.locator(".select2-selection__rendered")
+        """Locator for the selected value in single-select."""
+        return self.root.locator("span.select2-selection__rendered")
     
     @property
     def multi_value_display(self) -> Locator:
+        """Locator for all the selected values in multi-select."""
         return self.root.locator(".select2-selection__choice__display")
     
     @property
+    def multi_selected_choices(self) -> Locator:
+        """Locator for specific selected choices in multi-select."""
+        return self.root.locator("li.select2-selection__choice")
+    
+    @property
     def clear_all(self) -> Locator:
+        """Locator for the clear-all button."""
         return self.root.locator(".select2-selection__clear")
 
     @property
     def single_clear(self) -> Locator:
+        """Locator for the single clear button."""
         return self.root.locator(".select2-selection__choice__remove")
     
     @classmethod
@@ -100,8 +113,11 @@ class Select2Component:
 
     async def open(self) -> None:
         """Opens the Select2 dropdown."""
+        if await self.is_open():
+            logger.debug(f"[Select2] Dropdown already open: ({self.dropdown})")
+            return
+        
         logger.debug(f"[Select2] Opening Select2 ({self.selector})")
-
         await self.root.click()
 
         try:
@@ -112,6 +128,10 @@ class Select2Component:
                 message="Search field did not become visible after opening Select2.",
                 cause=e
             )
+
+    async def is_open(self) -> bool:
+        """Returns True if the Select2 dropdown is open."""
+        return await self.dropdown.is_visible()
 
     async def close(self) -> None:
         """
@@ -202,6 +222,22 @@ class Select2Component:
         # Nothing to clear
         logger.debug(f"[Select2] No clear button in {self.selector} available to clear selections, nothing to clear.")
         return
+
+    async def validate_cleared(self) -> None:
+        """
+        Validates that the select2 is cleared.
+
+        For multi-select: Validates that no li.select2-selection__choice elements exist (no selected options).
+        For single-select: Skips validation because single-select often has a default value and cannot be cleared.
+        """
+        # Validate: expect 0 selected choices (li.select2-selection__choice)
+        logger.debug(f"[Select2] Validating that Select2 ({self.selector}) is cleared.")
+        await expect(self.multi_selected_choices).to_have_count(0, timeout=self.timeout)
+       
+    async def clear_and_validate(self) -> None:
+        """Clears the Select2 and validates that it is cleared."""
+        await self.clear()
+        await self.validate_cleared()
 
     async def get_value(self) -> Optional[Union[str, List[str]]]:
         """Return the currently selected value(s) as visible text."""

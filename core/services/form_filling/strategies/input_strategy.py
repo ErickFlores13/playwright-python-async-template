@@ -2,7 +2,7 @@ import logging
 from typing import Any
 from core.services.form_filling.base_strategy import BaseFieldStrategy
 from core.services.form_filling.field import Field
-from core.componentes.input import InputComponent
+from core.components.input import InputComponent
 from core.utils.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ class InputStrategy(BaseFieldStrategy):
         component = InputComponent(field.locator.page, field.selector)
         await component.fill(value)
 
-    async def clear(self, field: Field) -> None:
-        """Clear the input field."""
+    async def clear_and_validate(self, field: Field) -> None:
+        """Clear the input field and validate it is cleared."""
         component = InputComponent(field.locator.page, field.selector)
-        await component.clear()
+        await component.clear_and_validate()

@@ -17,6 +17,6 @@ class BaseFieldStrategy(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    async def clear(self, field: Field) -> None:
-        """Clear the field's value."""
+    async def clear_and_validate(self, field: Field) -> None:
+        """Clear the field's value and validate it is cleared."""
         raise NotImplementedError()

@@ -1,5 +1,5 @@
 import logging
-from playwright.async_api import Page, Locator
+from playwright.async_api import Page, Locator, expect
 
 logger = logging.getLogger(__name__)
 
@@ -36,3 +36,12 @@ class DatePickerComponent:
         await self.wait_for_visible()
         logger.debug(f"[DatePicker] Clearing value of {self.selector}")
         await self.locator.fill("")
+
+    async def validate_cleared(self) -> None:
+        """Validate if date picker is cleared."""
+        await expect(self.locator).to_have_value("")
+    
+    async def clear_and_validate(self) -> None:
+        """Clear date picker and validate."""
+        await self.clear()
+        await self.validate_cleared()

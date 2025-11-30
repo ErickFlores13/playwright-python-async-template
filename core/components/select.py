@@ -1,5 +1,5 @@
 import logging
-from playwright.async_api import Page, Locator
+from playwright.async_api import Page, Locator, expect
 
 logger = logging.getLogger(__name__)
 
@@ -35,3 +35,18 @@ class SelectComponent:
         select_value = (await self.locator.input_value()).strip()
         logger.debug(f"[Select] Selected value in {self.selector} is '{select_value}'")
         return select_value
+    
+    async def clear_selection(self) -> None:
+        """Clear the selection (reset to empty)."""
+        await self.wait_for_visible()
+        logger.debug(f"[Select] Clearing selection in {self.selector}")
+        await self.locator.select_option("")
+
+    async def validate_cleared(self) -> None:
+        """Validate if selection is cleared."""
+        await expect(self.locator).to_have_value("")
+
+    async def clear_and_validate(self) -> None:
+        """Clear selection and validate."""
+        await self.clear_selection()
+        await self.validate_cleared()

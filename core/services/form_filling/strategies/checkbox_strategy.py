@@ -1,6 +1,6 @@
 from core.services.form_filling.base_strategy import BaseFieldStrategy
 from core.services.form_filling.field import Field
-from core.componentes.checkbox import CheckboxComponent
+from core.components.checkbox import CheckboxComponent
 
 class CheckboxStrategy(BaseFieldStrategy):
     """Handles single checkbox fields."""
@@ -20,7 +20,7 @@ class CheckboxStrategy(BaseFieldStrategy):
         else:
             await component.uncheck()
 
-    async def clear(self, field: Field) -> None:
-        """Clearing a checkbox means unchecking it."""
+    async def clear_and_validate(self, field: Field) -> None:
+        """Clear the checkbox by unchecking it and validate the action."""
         component = CheckboxComponent(field.locator.page, field.selector)
-        await component.uncheck()
+        await component.uncheck_and_validate()

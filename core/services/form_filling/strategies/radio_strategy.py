@@ -2,7 +2,7 @@ import logging
 from typing import Any
 from core.services.form_filling.base_strategy import BaseFieldStrategy
 from core.services.form_filling.field import Field
-from core.componentes.radio import RadioComponent
+from core.components.radio import RadioComponent
 
 logger = logging.getLogger(__name__)
 

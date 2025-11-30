@@ -2,7 +2,7 @@ import logging
 from typing import Any
 from core.services.form_filling.base_strategy import BaseFieldStrategy
 from core.services.form_filling.field import Field
-from core.componentes.button import ButtonComponent
+from core.components.button import ButtonComponent
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,6 @@ class ButtonStrategy(BaseFieldStrategy):
         component = ButtonComponent(field.locator.page, field.selector)
         await component.click()
 
-    async def clear(self, field: Field) -> None:
+    async def clear_and_validate(self, field: Field) -> None:
         # Buttons typically do not have a "clear" action
         return

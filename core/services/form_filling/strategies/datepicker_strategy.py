@@ -2,7 +2,7 @@ import logging
 from typing import Any
 from core.services.form_filling.base_strategy import BaseFieldStrategy
 from core.services.form_filling.field import Field
-from core.componentes.datepicker import DatePickerComponent
+from core.components.datepicker import DatePickerComponent
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class DatepickerStrategy(BaseFieldStrategy):
         component = DatePickerComponent(field.locator.page, field.selector)
         await component.set_date(str(value))
 
-    async def clear(self, field: Field) -> None:
-        """Clears the date picker value."""
+    async def clear_and_validate(self, field: Field) -> None:
+        """Clears and validates the date picker value."""
         component = DatePickerComponent(field.locator.page, field.selector)
-        await component.clear()
+        await component.clear_and_validate()
