@@ -15,10 +15,12 @@ class SelectStrategy(BaseFieldStrategy):
         return field.tag == "select"
 
     async def fill(self, field: Field, value: Any) -> None:
-        """Fill the select field with the given value."""
+        """Fill the select field with smart matching (direct partial text - no timeouts)."""
         component = SelectComponent(field.locator.page, field.selector)
-        if isinstance(value, (str)):
-            await component.select_by_text(str(value))
+        if isinstance(value, str):
+            # Direct partial text match - no timeout penalties from trying other methods
+            await component.select_by_partial_text(str(value))
+            logger.debug(f"[SelectStrategy] Selected option containing: {value}")
         else:
             raise TypeError(f"Select field expects str, got {type(value).__name__}")
 

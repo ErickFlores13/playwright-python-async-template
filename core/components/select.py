@@ -29,6 +29,25 @@ class SelectComponent:
         logger.debug(f"[Select] Selecting text '{text}' in {self.selector}")
         await self.locator.select_option(label=text)
 
+    async def select_by_partial_text(self, partial_text: str) -> None:
+        """Select option containing the given text (partial match)."""
+        await self.wait_for_visible()
+        logger.debug(f"[Select] Selecting option containing '{partial_text}' in {self.selector}")
+        
+        # Get all options
+        options = await self.locator.locator('option').all()
+        
+        # Find option containing the text
+        for option in options:
+            text = await option.text_content()
+            if partial_text in text:
+                value = await option.get_attribute('value')
+                await self.locator.select_option(value=value)
+                logger.debug(f"[Select] Selected option with value '{value}' (text: '{text}')")
+                return
+        
+        raise ValueError(f"No option containing '{partial_text}' found in {self.selector}")
+
     async def get_value(self) -> str:
         """Get the currently selected value."""
         await self.wait_for_visible()
