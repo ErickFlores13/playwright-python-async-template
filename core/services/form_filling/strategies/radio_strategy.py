@@ -18,6 +18,9 @@ class RadioStrategy(BaseFieldStrategy):
         component = RadioComponent(field.locator.page, field.selector)
         await component.select(str(value))
 
-    async def clear(self, field: Field) -> None:
-        # Radios cannot be 'cleared' in the traditional sense; there is no unselect option.
+    async def clear_and_validate(self, field: Field) -> None:
+        """
+        Radios cannot be cleared - this is a no-op.
+        """
+        logger.debug(f"[RadioStrategy] Clear skipped for radio button {field.selector} (radios cannot be cleared)")
         return
