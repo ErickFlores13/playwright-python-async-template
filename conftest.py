@@ -33,16 +33,12 @@ from pages.base_pages.login_page import LoginPage
 from helpers.database import DatabaseClient
 from helpers.api_client import APIClient
 from utils.config import Config
+from core.utils.logger_config import configure_logging
 
 # Ensure package imports work regardless of execution path
 sys.path.insert(0, os.path.dirname(__file__))
 
-# --- Logging configuration ----------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
+# --- Get logger for this module -----------------------------------------------
 logger = logging.getLogger(__name__)
 
 # --- Pytest configuration hook for parallel execution -------------------------
@@ -62,9 +58,19 @@ def pytest_configure(config):
     """
     Configure pytest based on environment variables.
     
-    Automatically enables parallel execution if PYTEST_WORKERS is set
-    and -n option is not provided on command line.
+    Sets up:
+    - Centralized logging configuration
+    - Automatic parallel execution if PYTEST_WORKERS is set
     """
+    # Configure centralized logging
+    log_level = logging.DEBUG if Config.is_debug() else logging.INFO
+    log_to_file = Config.is_ci_environment()
+    
+    configure_logging(
+        level=log_level,
+        log_to_file=log_to_file
+    )
+    
     # Check if -n option was provided on command line
     # If not, use PYTEST_WORKERS from environment
     if config.getoption('numprocesses', None) is None:
@@ -160,9 +166,12 @@ async def pages_registry() -> AsyncGenerator[List[Page], None]:
 
 @pytest_asyncio.fixture(scope="function")
 async def page(context: BrowserContext, pages_registry: list[Page]) -> AsyncGenerator[Page, None]:
-    """Provides a single Playwright Page object per test."""
+    """
+    Provides a single Playwright Page object per test.
+    """
     page = await context.new_page()
     pages_registry.append(page)
+    
     yield page
     await page.close()
 
@@ -172,47 +181,6 @@ async def login(page: Page):
     async def _connect_to_environment(username: str, password: str, url: str):
         return await LoginPage(page).login(username, password, url)
     return _connect_to_environment
-
-# DRY helper for login fixtures
-async def _login_factory(browser: Browser, pages_registry, base_url_env: str):
-    async def _login(username: str, password: str):
-        context = await browser.new_context(ignore_https_errors=True, viewport={"width": 1920, "height": 1080})
-        page = await context.new_page()
-        url = os.getenv(base_url_env)
-        result_page = await LoginPage(page).login(username, password, base_url=url)
-        pages_registry.append(result_page)
-        return context, result_page
-    return _login
-
-@pytest_asyncio.fixture
-async def login_admin_central(browser: Browser, pages_registry):
-    """Fixture for admin central login."""
-    sessions = []
-    login = await _login_factory(browser, pages_registry, "ADMIN_USUARIOS_CENTRAL_URL")
-    yield login
-    for context, page, task in sessions:
-        task.cancel()
-        await context.close()
-
-@pytest_asyncio.fixture
-async def login_admin_local_a(browser: Browser, pages_registry):
-    """Fixture for admin local A login."""
-    sessions = []
-    login = await _login_factory(browser, pages_registry, "ADMIN_USUARIOS_LOCAL_A_URL")
-    yield login
-    for context, page, task in sessions:
-        task.cancel()
-        await context.close()
-
-@pytest_asyncio.fixture
-async def login_admin_local_b(browser: Browser, pages_registry):
-    """Fixture for admin local B login."""
-    sessions = []
-    login = await _login_factory(browser, pages_registry, "ADMIN_USUARIOS_LOCAL_B_URL")
-    yield login
-    for context, page, task in sessions:
-        task.cancel()
-        await context.close()
 
 # --- Screenshot + Allure integration on failure -------------------------------
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -368,3 +336,5 @@ async def close_redis():
     """Automatically closes all Redis connections after each test."""
     yield
     await RedisClient.close_all()
+
+

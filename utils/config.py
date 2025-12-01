@@ -215,6 +215,22 @@ class Config:
             )
         
         return True
+    
+    # ========== Logging Settings ==========
+    @staticmethod
+    def is_debug() -> bool:
+        """Check if debug mode is enabled."""
+        return os.getenv('DEBUG', 'true').lower() == 'true'
+    
+    @staticmethod
+    def is_ci_environment() -> bool:
+        """Check if running in CI environment."""
+        return os.getenv('CI', 'false').lower() == 'true'
+    
+    @staticmethod
+    def get_log_level() -> str:
+        """Get logging level (DEBUG, INFO, WARNING, ERROR)."""
+        return os.getenv('LOG_LEVEL', 'DEBUG').upper()
 
 
 # Singleton instance for easy access
