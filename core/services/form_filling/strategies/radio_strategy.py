@@ -24,3 +24,13 @@ class RadioStrategy(BaseFieldStrategy):
         """
         logger.debug(f"[RadioStrategy] Clear skipped for radio button {field.selector} (radios cannot be cleared)")
         return
+
+    async def validate_in_edit_view(self, field: Field, expected_value: Any) -> None:
+        """Validate the radio button has the expected value selected in edit view.
+        
+        Args:
+            field: The field to validate
+            expected_value: The expected value of the selected radio button
+        """
+        component = RadioComponent(field.locator.page, field.selector)
+        await component.validate(str(expected_value))
