@@ -41,6 +41,16 @@ class DatePickerComponent:
         """Validate if date picker is cleared."""
         await expect(self.locator).to_have_value("")
     
+    async def validate(self, expected_value: str) -> None:
+        """Validate that the date picker has the expected value.
+        
+        Args:
+            expected_value: The expected date value (e.g., '2024-12-31')
+        """
+        await self.wait_for_visible()
+        logger.debug(f"[DatePicker] Validating {self.selector} has value '{expected_value}'")
+        await expect(self.locator).to_have_value(expected_value)
+    
     async def clear_and_validate(self) -> None:
         """Clear date picker and validate."""
         await self.clear()
