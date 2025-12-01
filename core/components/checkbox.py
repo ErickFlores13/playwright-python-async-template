@@ -29,6 +29,9 @@ class CheckboxComponent:
         if not await self.locator.is_checked():
             logger.debug(f"[Checkbox] Checking {self.selector}")
             await self.locator.check()
+        else:
+            logger.debug(f"[Checkbox] {self.selector} is already checked")
+            pass
 
     async def uncheck(self) -> None:
         """Uncheck the checkbox."""
