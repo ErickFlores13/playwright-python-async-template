@@ -28,3 +28,7 @@ class ButtonStrategy(BaseFieldStrategy):
     async def clear_and_validate(self, field: Field) -> None:
         # Buttons typically do not have a "clear" action
         return
+    
+    async def validate_in_edit_view(self):
+        # Buttons typically do not have a value to validate
+        return
