@@ -33,6 +33,16 @@ class FileComponent:
         """Validate if file input is cleared."""
         await expect(self.locator).to_have_value("")
 
+    async def validate_has_file(self) -> None:
+        """Validate that a file has been uploaded (input is not empty).
+        
+        Note: Due to browser security restrictions, we can only verify that
+        a file exists, but cannot validate the specific filename.
+        """
+        await self.wait_for_visible()
+        logger.debug(f"[FileComponent] Validating {self.selector} has a file")
+        await expect(self.locator).not_to_have_value("")
+
     async def clear_and_validate(self) -> None:
         """Clear file input and validate."""
         await self.clear()

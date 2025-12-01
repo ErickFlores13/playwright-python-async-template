@@ -29,3 +29,16 @@ class FileStrategy(BaseFieldStrategy):
         component = FileComponent(field.locator.page, field.selector)
         await component.clear_and_validate()
 
+    async def validate_in_edit_view(self, field: Field) -> None:
+        """Validate that a file has been uploaded to the file input.
+        
+        Note: Due to browser security restrictions, we can only verify that
+        a file exists, but cannot validate the specific filename matches expected_value.
+        This method simply validates that the file input is not empty.
+        
+        Args:
+            field: The field to validate
+        """
+        component = FileComponent(field.locator.page, field.selector)
+        await component.validate_has_file()
+
