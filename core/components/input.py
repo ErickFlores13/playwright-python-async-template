@@ -1,6 +1,8 @@
 import logging
 from playwright.async_api import Page, Locator, expect
 
+from core.utils.exceptions import ValidationError
+
 logger = logging.getLogger(__name__)
 
 class InputComponent:
@@ -53,7 +55,13 @@ class InputComponent:
         if input_type == "number":
             actual_value = await self.locator.input_value()
             logger.debug(f"[InputComponent] Validating {self.selector} has numeric value '{expected_value}' (actual: '{actual_value}')")
-            assert float(actual_value) == float(expected_value), f"Expected '{expected_value}', but got '{actual_value}'"
+            try:
+                assert float(actual_value) == float(expected_value)
+            except ValueError as e:
+                raise ValidationError(
+                    field=self.selector,
+                    message=f"Cannot convert input value '{actual_value}' to number for comparison with '{expected_value}'"
+                ) from e
         else:
             # For text/other inputs, use Playwright's to_have_value
             logger.debug(f"[InputComponent] Validating {self.selector} has value '{expected_value}'")
