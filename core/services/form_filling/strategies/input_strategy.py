@@ -28,3 +28,11 @@ class InputStrategy(BaseFieldStrategy):
         """Clear the input field and validate it is cleared."""
         component = InputComponent(field.locator.page, field.selector)
         await component.clear_and_validate()
+
+    async def validate_in_edit_view(self, field: Field, expected_value: Any) -> None:
+        """Validate the input field has the expected value without clearing it."""
+        if not isinstance(expected_value, str):
+            raise ValidationError("text", f"Text input requires str for validation, got {type(expected_value).__name__}")
+        
+        component = InputComponent(field.locator.page, field.selector)
+        await component.validate(expected_value)

@@ -37,3 +37,9 @@ class InputComponent:
         """Clear input and validate."""
         await self.clear()
         await self.validate_cleared()
+
+    async def validate(self, expected_value: str) -> bool:
+        """Validate input has the expected value."""
+        await self.wait_for_visible()
+        logger.debug(f"[InputComponent] Validating {self.selector} has value '{expected_value}'")
+        await expect(self.locator).to_have_value(str(expected_value))
