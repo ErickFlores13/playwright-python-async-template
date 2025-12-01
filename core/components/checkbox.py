@@ -41,6 +41,19 @@ class CheckboxComponent:
         """Validate that the checkbox is unchecked."""
         await expect(self.locator).not_to_be_checked()
 
+    async def validate(self, expected_checked: bool) -> None:
+        """Validate that the checkbox matches the expected state.
+        
+        Args:
+            expected_checked: True if checkbox should be checked, False if unchecked
+        """
+        await self.wait_for_visible()
+        logger.debug(f"[Checkbox] Validating {self.selector} is {'checked' if expected_checked else 'unchecked'}")
+        if expected_checked:
+            await expect(self.locator).to_be_checked()
+        else:
+            await expect(self.locator).not_to_be_checked()
+
     async def uncheck_and_validate(self) -> None:
         """Uncheck the checkbox and validate it is unchecked."""
         await self.uncheck()

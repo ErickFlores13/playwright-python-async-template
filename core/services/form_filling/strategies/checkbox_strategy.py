@@ -24,3 +24,16 @@ class CheckboxStrategy(BaseFieldStrategy):
         """Clear the checkbox by unchecking it and validate the action."""
         component = CheckboxComponent(field.locator.page, field.selector)
         await component.uncheck_and_validate()
+
+    async def validate_in_edit_view(self, field: Field, expected_value: bool) -> None:
+        """Validate the checkbox has the expected state in edit view.
+        
+        Args:
+            field: The field to validate
+            expected_value: True if checkbox should be checked, False if unchecked
+        """
+        if not isinstance(expected_value, bool):
+            raise ValueError(f"[CheckboxStrategy] Value for checkbox validation must be bool, got {type(expected_value)}")
+        
+        component = CheckboxComponent(field.locator.page, field.selector)
+        await component.validate(expected_value)
