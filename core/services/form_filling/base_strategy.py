@@ -20,3 +20,8 @@ class BaseFieldStrategy(ABC):
     async def clear_and_validate(self, field: Field) -> None:
         """Clear the field's value and validate it is cleared."""
         raise NotImplementedError()
+    
+    @abstractmethod
+    async def validate_in_edit_view(self, field: Field, expected_value: Any) -> None:
+        """Validate the field's value in the edit view."""
+        raise NotImplementedError()
