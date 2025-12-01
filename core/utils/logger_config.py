@@ -17,7 +17,6 @@ Usage:
 Environment Variables:
     - DEBUG=true/false - Controls log level (DEBUG vs INFO)
     - CI=true/false - Enables file logging in CI environments
-    - LOG_LEVEL=DEBUG|INFO|WARNING|ERROR - Override log level
 """
 import logging
 import sys

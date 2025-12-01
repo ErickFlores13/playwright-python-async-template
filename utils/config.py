@@ -160,11 +160,6 @@ class Config:
         """Get screenshots directory path."""
         return os.getenv('SCREENSHOTS_DIR', 'screenshots')
     
-    @staticmethod
-    def get_discord_webhook_url() -> Optional[str]:
-        """Get Discord webhook URL for notifications."""
-        return os.getenv('DISCORD_WEBHOOK_URL')
-    
     # ========== Helper Methods ==========
     @staticmethod
     def get_all_config() -> Dict[str, Any]:
@@ -186,7 +181,7 @@ class Config:
             'headless': Config.is_headless(),
             'viewport': Config.get_viewport_size(),
             'locale': Config.get_browser_locale(),
-            'test_timeout': Config.get_test_timeout(),
+            'timeout': Config.get_timeout(),
             'pytest_workers': Config.get_pytest_workers(),
             'screenshots_dir': Config.get_screenshots_dir(),
         }
@@ -226,11 +221,6 @@ class Config:
     def is_ci_environment() -> bool:
         """Check if running in CI environment."""
         return os.getenv('CI', 'false').lower() == 'true'
-    
-    @staticmethod
-    def get_log_level() -> str:
-        """Get logging level (DEBUG, INFO, WARNING, ERROR)."""
-        return os.getenv('LOG_LEVEL', 'DEBUG').upper()
 
 
 # Singleton instance for easy access
