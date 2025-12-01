@@ -4,6 +4,7 @@ from playwright.async_api import Page, Locator
 from core.utils.exceptions import ValidationError, ConfigurationError
 from typing import Union
 from core.utils.playwright_utils import resolve_locator
+from core.services.wait import Wait
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +22,14 @@ class FileHandler:
                 message="Page instance cannot be None or empty"
             )
         self.page = page
+        self.wait = Wait(page)
 
-    async def upload_files_with_preview_validation(self, 
-                                                   file_input: Union[str, Locator], 
-                                                   file_paths: list[str], 
-                                                   preview_element: Union[str, Locator],
-                                                   timeout: float = 30000) -> None:
+    async def upload_files_with_preview_validation(
+            self, 
+            file_input: Union[str, Locator], 
+            file_paths: list[str], 
+            preview_element: Union[str, Locator],
+            timeout: float = 30000) -> None:
         """
         Uploads files and validates preview elements.
         
@@ -60,7 +63,7 @@ class FileHandler:
         await file_input_locator.set_input_files(file_paths, timeout=timeout)
         
         logger.debug("Waiting for page to process uploads and display previews")
-        await self.wait_for_page_load(timeout=timeout)
+        await self.wait.wait_for_page_load(timeout=timeout)
         
         logger.debug(f"Validating {len(file_paths)} file previews using selector: {preview_element}")
         preview_locator = resolve_locator(self.page, preview_element)
@@ -71,66 +74,10 @@ class FileHandler:
         if preview_count != len(file_paths):
             raise ValidationError("file_preview", f"Expected {len(file_paths)} previews, found {preview_count}")
 
-    async def handle_drag_and_drop_upload(self, 
-                                          drop_zone: Union[str, Locator], 
-                                          file_paths: list, 
-                                          timeout: float = 30000) -> None:
-        """
-        Handles drag-and-drop file uploads.
-        
-        Args:
-            drop_zone (Union[str, Locator]): selector or Locator for the drop zone element
-            file_paths (list): List of file paths to upload
-            timeout (float, optional): Maximum wait time (ms) for the drop zone
-                to become visible. Defaults to Playwright's timeout.
-            
-        Raises:
-            ValidationError: if any file does not exist.
-            playwright.async_api.TimeoutError: if drop zone does not become visible in time.
-                
-        Example:
-            await page.handle_drag_and_drop_upload('#dropzone', ['/path/to/file.pdf'])
-        """
-        logger.debug(f"Handling drag-and-drop upload for files: {file_paths} into drop zone: {drop_zone}")
-        drop_zone_locator = resolve_locator(self.page, drop_zone)
-        await drop_zone_locator.wait_for(state="visible", timeout=timeout)
-        
-        for file_path in file_paths:
-            if not os.path.exists(file_path):
-                raise ValidationError("file_upload", f"File not found: {file_path}")
-        
-        logger.debug(f"Simulating drag-and-drop for files: {file_paths}")
-        hidden_input = drop_zone_locator.locator('input[type="file"]').first
-        
-        logger.debug("Checking for hidden file input within drop zone")
-        if await hidden_input.count() > 0:
-            await hidden_input.set_input_files(file_paths, timeout=timeout)
-            logger.debug("Files set via hidden input within drop zone")
-        else:
-            logger.debug("No hidden file input found; simulating drag-and-drop directly on drop zone")
-            # If no hidden input, simulate drag-drop on the drop zone directly
-            await drop_zone_locator.evaluate("""
-                (element, files) => {
-                    const dt = new DataTransfer();
-                    files.forEach(file => {
-                        const fileObj = new File([''], file.split('/').pop(), {type: 'application/octet-stream'});
-                        dt.items.add(fileObj);
-                    });
-                    
-                    const event = new DragEvent('drop', {
-                        bubbles: true,
-                        cancelable: true,
-                        dataTransfer: dt
-                    });
-                    
-                    element.dispatchEvent(event);
-                }
-            """, file_paths)
-            logger.debug("Drag-and-drop event dispatched on drop zone")
-
-        logger.debug("Drag-and-drop upload simulation complete")
-
-    async def download_file(self, download_trigger: Union[str, Locator], expected_filename: str = None) -> str:
+    async def download_file(
+            self, 
+            download_trigger: Union[str, Locator], 
+            expected_filename: str = None) -> str:
         """
         Triggers a file download and waits for it to complete.
         
@@ -170,9 +117,10 @@ class FileHandler:
         logger.debug(f"File downloaded successfully: {file_path}")
         return file_path
 
-    async def verify_file_downloaded(self, 
-                                     file_path: str, 
-                                     min_size_bytes: int = 0) -> bool:
+    async def verify_file_downloaded(
+            self, 
+            file_path: str, 
+            min_size_bytes: int = 0) -> bool:
         """
         Verifies that a file exists and optionally checks its size.
         
