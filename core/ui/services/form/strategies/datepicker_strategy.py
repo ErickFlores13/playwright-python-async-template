@@ -1,8 +1,8 @@
 import logging
 from typing import Any
-from core.services.form_filling.base_strategy import BaseFieldStrategy
-from core.services.form_filling.field import Field
-from core.components.datepicker import DatePickerComponent
+from core.ui.services.form.base_strategy import BaseFieldStrategy
+from core.ui.services.form.field import Field
+from core.ui.components.datepicker import DatePickerComponent
 
 logger = logging.getLogger(__name__)
 

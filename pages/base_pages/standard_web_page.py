@@ -1,5 +1,5 @@
 from playwright.async_api import Page, expect
-from core.base_page import BasePage
+from core.ui.base_page import BasePage
 from utils.consts import FilterType, ButtonOperations, ValidationType
 from core.utils.exceptions import ElementNotFoundError, ValidationError
 from typing import Literal, Callable, Any

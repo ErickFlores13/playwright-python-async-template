@@ -1,8 +1,8 @@
 import logging
 from typing import Union
-from core.services.form_filling.base_strategy import BaseFieldStrategy
-from core.services.form_filling.field import Field
-from core.components.file import FileComponent
+from core.ui.services.form.base_strategy import BaseFieldStrategy
+from core.ui.services.form.field import Field
+from core.ui.components.file import FileComponent
 
 logger = logging.getLogger(__name__)
 

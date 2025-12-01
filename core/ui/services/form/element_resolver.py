@@ -2,7 +2,7 @@ import logging
 from typing import Tuple, Optional, List, Union
 from playwright.async_api import Page, Locator, TimeoutError as PlaywrightTimeoutError
 from core.utils.exceptions import ConfigurationError, ElementNotFoundError
-from core.services.form_filling.field import Field
+from core.ui.services.form.field import Field
 
 logger = logging.getLogger(__name__)
 

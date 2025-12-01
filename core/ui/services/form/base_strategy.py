@@ -1,6 +1,6 @@
 from typing import Any
 from abc import ABC, abstractmethod
-from core.services.form_filling.field import Field
+from core.ui.services.form.field import Field
 
 
 class BaseFieldStrategy(ABC):

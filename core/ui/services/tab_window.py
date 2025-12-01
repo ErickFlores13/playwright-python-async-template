@@ -3,7 +3,7 @@ import logging
 
 from playwright.async_api import Page
 
-from core.services.wait import Wait
+from core.ui.services.wait import Wait
 from core.utils.exceptions import ConfigurationError, ElementNotFoundError, ValidationError
 
 logger = logging.getLogger(__name__)

@@ -4,7 +4,7 @@ from playwright.async_api import Page, Locator
 from core.utils.exceptions import ValidationError, ConfigurationError
 from typing import Union
 from core.utils.playwright_utils import resolve_locator
-from core.services.wait import Wait
+from core.ui.services.wait import Wait
 
 logger = logging.getLogger(__name__)
 

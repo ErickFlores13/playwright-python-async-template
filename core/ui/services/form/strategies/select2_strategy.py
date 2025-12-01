@@ -1,7 +1,7 @@
 from typing import Any
-from core.services.form_filling.base_strategy import BaseFieldStrategy
-from core.services.form_filling.field import Field
-from core.components.select2 import Select2Component
+from core.ui.services.form.base_strategy import BaseFieldStrategy
+from core.ui.services.form.field import Field
+from core.ui.components.select2 import Select2Component
 
 class Select2Strategy(BaseFieldStrategy):
     """Handles Select2 fields using Select2Component."""

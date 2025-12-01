@@ -9,7 +9,7 @@ License: MIT
 """
 
 from playwright.async_api import Page
-from core.base_page import BasePage
+from core.ui.base_page import BasePage
 
 
 class LoginPage(BasePage):

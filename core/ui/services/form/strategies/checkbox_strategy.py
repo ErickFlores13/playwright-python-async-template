@@ -1,6 +1,6 @@
-from core.services.form_filling.base_strategy import BaseFieldStrategy
-from core.services.form_filling.field import Field
-from core.components.checkbox import CheckboxComponent
+from core.ui.services.form.base_strategy import BaseFieldStrategy
+from core.ui.services.form.field import Field
+from core.ui.components.checkbox import CheckboxComponent
 
 class CheckboxStrategy(BaseFieldStrategy):
     """Handles single checkbox fields."""

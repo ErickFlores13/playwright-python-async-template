@@ -1,16 +1,16 @@
 import logging
 from typing import Dict, Any
-from core.services.form_filling.base_strategy import BaseFieldStrategy
-from core.services.form_filling.field import Field
-from core.services.form_filling.strategies.button_strategy import ButtonStrategy
-from core.services.form_filling.strategies.checkbox_strategy import CheckboxStrategy
-from core.services.form_filling.strategies.datepicker_strategy import DatepickerStrategy
-from core.services.form_filling.strategies.file_strategy import FileStrategy
-from core.services.form_filling.strategies.input_strategy import InputStrategy
-from core.services.form_filling.strategies.radio_strategy import RadioStrategy
-from core.services.form_filling.strategies.select_strategy import SelectStrategy
-from core.services.form_filling.strategies.select2_strategy import Select2Strategy
-from core.services.form_filling.element_resolver import ElementResolver
+from core.ui.services.form.base_strategy import BaseFieldStrategy
+from core.ui.services.form.field import Field
+from core.ui.services.form.strategies.button_strategy import ButtonStrategy
+from core.ui.services.form.strategies.checkbox_strategy import CheckboxStrategy
+from core.ui.services.form.strategies.datepicker_strategy import DatepickerStrategy
+from core.ui.services.form.strategies.file_strategy import FileStrategy
+from core.ui.services.form.strategies.input_strategy import InputStrategy
+from core.ui.services.form.strategies.radio_strategy import RadioStrategy
+from core.ui.services.form.strategies.select_strategy import SelectStrategy
+from core.ui.services.form.strategies.select2_strategy import Select2Strategy
+from core.ui.services.form.element_resolver import ElementResolver
 from core.utils.exceptions import FormFillingError
 
 logger = logging.getLogger(__name__)
