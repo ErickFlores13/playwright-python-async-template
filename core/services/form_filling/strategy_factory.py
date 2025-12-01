@@ -11,7 +11,7 @@ from core.services.form_filling.strategies.radio_strategy import RadioStrategy
 from core.services.form_filling.strategies.select_strategy import SelectStrategy
 from core.services.form_filling.strategies.select2_strategy import Select2Strategy
 from core.services.form_filling.element_resolver import ElementResolver
-from utils.exceptions import FormFillingError
+from core.utils.exceptions import FormFillingError
 
 logger = logging.getLogger(__name__)
 
@@ -33,12 +33,12 @@ class StrategyFactory:
             Select2Strategy(),
         ]
 
-    def get_strategy(self, field: Field) -> BaseFieldStrategy:
+    async def get_strategy(self, field: Field) -> BaseFieldStrategy:
         """Return the appropriate strategy for a Field."""
         for strategy in self.strategies:
-            if strategy.can_handle(field):
+            if await strategy.can_handle(field):
                 return strategy
-        raise ValueError(f"No strategy found for field: {field.selector} ({field.tag}/{field.input_type})")
+        raise FormFillingError(f"No strategy found for field with selector: {field.selector}", field_selector=field.selector)
 
     async def fill_data(self, data: Dict[str, Any]) -> None:
         """
@@ -63,7 +63,7 @@ class StrategyFactory:
         """
         for selector, value in data.items():
             field = await self.resolver.resolve_field(selector)
-            strategy = self.get_strategy(field)
+            strategy = await self.get_strategy(field)
 
             # -----------------------------
             # Formset handling: button + list of dicts
@@ -93,3 +93,48 @@ class StrategyFactory:
             else:
                 logger.debug(f"Filling field '{selector}' with value: {value}")
                 await strategy.fill(field, value)
+
+
+    async def edit_item(self, new_data: dict) -> None:
+        """
+        Edit fields based on the provided new_data dictionary.
+        Args:
+            new_data (Dict[str, Any]): A dictionary mapping field selectors to new values.
+        Examples:
+            >>> await strategy_factory.edit_item({
+            ...     "#username": "newuser",
+            ...     "#password": "newpass",
+            ...     "#remember-me": False,
+            ...     "#profile-picture": "/path/to/newpic.jpg",
+            ...     "#birthdate": "1992-02-02",
+            ...     "#country": "CA",
+            ...     "#hobbies": ["gaming", "cooking"],
+            ... })
+        """
+        await self.clear_fields(new_data)
+        await self.fill_data(new_data)
+
+
+    async def clear_fields(self, data: dict) -> None:
+        """
+        Clear multiple fields based on the provided data dictionary.
+        Args:
+            data (Dict[str, Any]): A dictionary mapping field selectors to values.
+        Examples:
+            >>> await strategy_factory.clear_fields({
+            ...     "#username": None,
+            ...     "#password": None,
+            ...     "#remember-me": None,
+            ...     "#profile-picture": None,
+            ...     "#birthdate": None,
+            ...     "#country": None,
+            ...     "#hobbies": None,
+            ... })
+        """
+        for selector in data.keys():
+            field = await self.resolver.resolve_field(selector)
+            strategy = await self.get_strategy(field)
+
+            logger.debug(f"Clearing field '{selector}'")
+            await strategy.clear_and_validate(field)
+
