@@ -29,3 +29,16 @@ class SelectStrategy(BaseFieldStrategy):
         logger.debug(f"[SelectStrategy] Clearing select field {field.selector}")
         component = SelectComponent(field.locator.page, field.selector)
         await component.clear_and_validate()
+
+    async def validate_in_edit_view(self, field: Field, expected_value: Any) -> None:
+        """Validate the select field has the expected option selected in edit view.
+        
+        Args:
+            field: The field to validate
+            expected_value: The expected text (partial match) in the selected option
+        """
+        if not isinstance(expected_value, str):
+            raise TypeError(f"Select field expects str for validation, got {type(expected_value).__name__}")
+        
+        component = SelectComponent(field.locator.page, field.selector)
+        await component.validate(expected_value)

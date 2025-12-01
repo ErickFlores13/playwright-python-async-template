@@ -65,6 +65,16 @@ class SelectComponent:
         """Validate if selection is cleared."""
         await expect(self.locator).to_have_value("")
 
+    async def validate(self, expected_text: str) -> None:
+        """Validate that the selected option contains the expected text.
+        
+        Args:
+            expected_text: The expected text (partial match) in the selected option
+        """
+        await self.wait_for_visible()
+        logger.debug(f"[Select] Validating {self.selector} has option containing '{expected_text}' selected")
+        await expect(self.locator).to_contain_text(expected_text)
+
     async def clear_and_validate(self) -> None:
         """Clear selection and validate."""
         await self.clear_selection()
