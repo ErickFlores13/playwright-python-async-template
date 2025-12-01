@@ -13,9 +13,25 @@ class Select2Strategy(BaseFieldStrategy):
     async def fill(self, field: Field, value: Any) -> None:
         """Fill the Select2 field with the specified value."""
         component = await Select2Component.create(field.locator.page, field.selector)
-        await component.select(str(value))
+        if isinstance(value, list):
+            for val in value:
+                await component.select(str(val))
+        elif isinstance(value, str):
+            await component.select(str(value))
+        else:
+            raise TypeError(f"Select2 field expects str or list of str, got {type(value).__name__}")
 
     async def clear_and_validate(self, field: Field) -> None:
         """Clears the Select2 field and validates it is cleared."""
         component = await Select2Component.create(field.locator.page, field.selector)
         await component.clear_and_validate()
+
+    async def validate_in_edit_view(self, field: Field, expected_value: Any) -> None:
+        """Validate the Select2 field has the expected value(s) selected in edit view.
+        
+        Args:
+            field: The field to validate
+            expected_value: For single-select, a string. For multi-select, a list of strings.
+        """
+        component = await Select2Component.create(field.locator.page, field.selector)
+        await component.validate(expected_value)

@@ -252,6 +252,28 @@ class Select2Component:
         logger.debug(f"[Select2] Validating that Select2 ({self.selector}) is cleared.")
         await expect(self.multi_selected_choices).to_have_count(0, timeout=self.timeout)
 
+    async def validate(self, expected_value: Union[str, List[str]]) -> None:
+        """Validate that the Select2 has the expected value(s) selected.
+        
+        Args:
+            expected_value: For single-select, a string. For multi-select, a list of strings.
+        """
+        logger.debug(f"[Select2] Validating {self.selector} has expected value(s): {expected_value}")
+        
+        current_value = await self.get_value()
+        
+        # For multi-select: compare as sets (order doesn't matter)
+        if isinstance(current_value, list) and isinstance(expected_value, list):
+            assert set(current_value) == set(expected_value), \
+                f"Select2 validation failed for {self.selector}: expected {expected_value}, but got {current_value}"
+        # For single-select: direct string comparison
+        elif isinstance(current_value, str) and isinstance(expected_value, str):
+            assert current_value == expected_value, \
+                f"Select2 validation failed for {self.selector}: expected '{expected_value}', but got '{current_value}'"
+        else:
+            assert False, \
+                f"Select2 validation type mismatch for {self.selector}: expected {type(expected_value).__name__}, but current value is {type(current_value).__name__}"
+
     async def clear_and_validate(self) -> None:
         """Clears the Select2 and validates that it is cleared."""
         await self.clear()
