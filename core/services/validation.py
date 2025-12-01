@@ -1,11 +1,7 @@
 import logging
-from playwright.async_api import Page, expect, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import Page, expect
 from typing import Literal
-from core.utils.exceptions import (
-    ElementNotFoundError, 
-    ValidationError,
-    ConfigurationError,
-)
+from core.utils.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +38,18 @@ class Validation:
         for container_selector, expected_value in data_validate.items():
             container = self.page.locator(container_selector)
             
+            logger.debug(f"[Validation] Validating container {container_selector} contains value '{expected_value}'")
+
             if isinstance(expected_value, bool):
                 checkbox = container.locator('input[type="checkbox"]')
+                logger.debug(f"[Validation] Validating checkbox in {container_selector} is {'checked' if expected_value else 'unchecked'}")
                 if expected_value:
                     await expect(checkbox).to_be_checked()
                 else:
                     await expect(checkbox).not_to_be_checked()
             
             elif isinstance(expected_value, list):
+                logger.debug(f"[Validation] Validating container {container_selector} contains multiple values {expected_value}")
                 for value in expected_value:
                     await expect(container).to_contain_text(str(value))
             
@@ -70,58 +70,28 @@ class Validation:
         """
 
         if validation_type == "enabled":
+            logger.debug(f"[Validation] Validating toggle {toggle_selector} is enabled (checked)")
             await expect(self.page.locator(toggle_selector)).to_be_checked()
         elif validation_type == "disabled":
+            logger.debug(f"[Validation] Validating toggle {toggle_selector} is disabled (unchecked)")
             await expect(self.page.locator(toggle_selector)).not_to_be_checked()
 
-    async def check_message(
+    async def validate_message(
             self, 
-            message: str, 
-            message_selector: str, 
-            continue_button_selector: str = None
-            ) -> None:
-        """
-        Verifies that a message appears on the page and clicks the continue button if visible.
-
+            selector: str, 
+            expected_text: str, 
+            exact: bool = False):
+        """Validate a message contains or matches expected text.
+        
         Args:
-            message (str): The expected message text.
-            message_selector (str): Selector for the element containing the message.
-            continue_button_selector (str, optional): Selector for the continue button.
-
-        Raises:
-            ElementNotFoundError: if message element or continue button is not found.
-            ValidationError: if message text doesn't match expected.
-
-        Example:
-            await check_message("Operation completed successfully!", 
-                               ".alert-message", 
-                               "button.continue")
-
-        Notes:
-            - If continue_button_selector is provided and the button is visible, it will be clicked.
+            selector: CSS selector for the message element
+            expected_text: Expected text in the message
+            exact: If True, requires exact match. If False, partial match (contains)
         """
-        try:
-            message_element = self.page.locator(message_selector)
-            await message_element.wait_for(state="visible", timeout=5000)
-            await expect(message_element).to_contain_text(message)
-
-            if continue_button_selector:
-                try:
-                    continue_button = self.page.locator(continue_button_selector)
-                    await continue_button.wait_for(state="visible", timeout=5000)
-                    await self.page.click(continue_button_selector)
-                except PlaywrightTimeoutError as e:
-                    raise ElementNotFoundError(continue_button_selector, timeout=5000) from e
-
-        except PlaywrightTimeoutError as e:
-            raise ElementNotFoundError(message_selector, timeout=5000) from e          
-        except AssertionError as e:
-            raise ValidationError(
-                field=message_selector,
-                message=f"Expected message '{message}' not found in element"
-            ) from e
-        except Exception as e:
-            raise ValidationError(
-                field=message_selector,
-                message=f"Unexpected error during message validation: {str(e)}"
-            ) from e
+        message = self.page.locator(selector)
+        if exact:
+            logger.debug(f"[Validation] Validating message {selector} exactly matches text '{expected_text}'")
+            await expect(message).to_have_text(expected_text)
+        else:
+            logger.debug(f"[Validation] Validating message {selector} contains text '{expected_text}'")
+            await expect(message).to_contain_text(expected_text)
