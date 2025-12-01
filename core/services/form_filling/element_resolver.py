@@ -64,24 +64,24 @@ class ElementResolver:
         logger.debug(f"get_field_props: selector={selector_or_locator} -> tag={tag} type={input_type} select2={is_select2}")
         return tag, input_type, is_select2
     
-    async def resolve_field(self, selector_or_locator: Union[str, Locator]) -> Field:
+    async def resolve_field(self, selector: str) -> Field:
         """
         Given a selector or Locator, return a fully-resolved Field object.
 
         Args:
-            selector_or_locator (Union[str, Locator]): Selector string or Locator instance.
+            selector (str): Selector string.
         
         Returns:
             Field: A Field object containing metadata about the element.
         """
-        locator = await self.get_locator(selector_or_locator)
+        locator = await self.get_locator(selector)
         await locator.wait_for(state="visible", timeout=self.timeout)
         
         tag, input_type, is_select2 = await self.get_field_props(locator)
-        logger.debug(f"resolve_field: selector={selector_or_locator} -> Field(tag={tag}, type={input_type}, select2={is_select2})")
-
+        logger.debug(f"resolve_field: selector={selector} -> Field(tag={tag}, type={input_type}, select2={is_select2})")
+        
         return Field(
-            selector=selector_or_locator if isinstance(selector_or_locator, str) else locator.selector,
+            selector=selector,
             locator=locator,
             tag=tag,
             input_type=input_type or "",
