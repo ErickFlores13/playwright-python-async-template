@@ -2,11 +2,12 @@
 conftest.py — Core pytest configuration for async Playwright tests.
 
 Includes:
-- Multi-context browser management.
-- Automatic screenshot capture on failure (Allure integrated).
-- Database (Postgres) and Redis connections.
-- 502 error handler with retry and recovery mechanism.
-- Structured logging and async-safe teardown.
+- Browser management with Strategy pattern
+- Database (Postgres) and Redis connections
+- Structured logging and async-safe teardown
+- Test fixtures (browser, page, context, etc.)
+
+Note: Pytest hooks are defined in core/reporting/pytest_hooks.py
 
 Author: Erick Guadalupe Félix Flores
 License: MIT
@@ -15,17 +16,13 @@ License: MIT
 import asyncio
 import logging
 import os
-import re
 import shutil
 import sys
-from datetime import datetime
 from typing import Generator, AsyncGenerator, List
 
-import allure
 import pytest
 import pytest_asyncio
-from allure_commons.types import AttachmentType
-from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
+from playwright.async_api import BrowserContext, Page
 
 # Custom imports
 from helpers.redis_client import RedisClient
@@ -34,6 +31,11 @@ from helpers.database import DatabaseClient
 from helpers.api_client import APIClient
 from utils.config import Config
 from core.utils.logger_config import configure_logging
+from core.ui.browser.browser_manager import BrowserManager
+from core.ui.browser.strategies.strategy_factory import get_browser_strategy
+
+# Import pytest hooks from dedicated module
+from core.reporting.pytest_hooks import pytest_runtest_makereport  # noqa: F401
 
 # Ensure package imports work regardless of execution path
 sys.path.insert(0, os.path.dirname(__file__))
@@ -88,59 +90,42 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     yield loop
     loop.close()
 
-# --- Playwright and browser fixtures ------------------------------------------
+# --- Browser Manager with Strategy Pattern ------------------------------------
 @pytest_asyncio.fixture(scope="session")
-async def playwright() -> AsyncGenerator[Playwright, None]:
-    async with async_playwright() as p:
-        yield p
-
-@pytest_asyncio.fixture(scope="session")
-async def browser(playwright: Playwright) -> AsyncGenerator[Browser, None]:
+async def browser_manager() -> AsyncGenerator[BrowserManager, None]:
     """
-    Launches the browser session with configuration from environment variables.
+    Provides BrowserManager for the entire test session.
     
-    Browser type is determined by BROWSER env var (chromium, firefox, webkit).
-    Headless mode is controlled by HEADLESS env var (true/false).
+    Strategy is selected based on environment variables:
+    - CI=true → CIStrategy (headless, video recording, optimized for CI)
+    - TEST_MODE=debug → DebugStrategy (slow motion, devtools, visible)
+    - Default → LocalStrategy (respects BROWSER, HEADLESS from config)
+    
+    The strategy pattern eliminates complex if/else logic and makes
+    browser configuration easy to extend and maintain.
     """
-    # Get browser configuration from Config
-    browser_type = Config.get_browser_type()
-    headless = Config.is_headless()
+    strategy = get_browser_strategy()
+    manager = BrowserManager(strategy)
     
-    # Select browser based on configuration
-    if browser_type == 'firefox':
-        browser = await playwright.firefox.launch(headless=headless)
-    elif browser_type == 'webkit':
-        browser = await playwright.webkit.launch(headless=headless)
-    else:  # Default to chromium
-        browser = await playwright.chromium.launch(headless=headless)
+    await manager.start()
+    logger.info(f"✅ Browser Manager started with {strategy.__class__.__name__}")
     
-    logger.info(f"Browser launched: {browser_type}, headless={headless}")
-    yield browser
-    await browser.close()
+    yield manager
+    
+    await manager.stop()
+    logger.info("Browser Manager stopped")
 
 @pytest_asyncio.fixture(scope="function")
-async def context(browser: Browser) -> AsyncGenerator[BrowserContext, None]:
+async def context(browser_manager: BrowserManager) -> AsyncGenerator[BrowserContext, None]:
     """
     Creates a new isolated browser context per test.
     
-    Configuration comes from environment variables:
-    - VIEWPORT_WIDTH, VIEWPORT_HEIGHT: Browser viewport size
-    - BROWSER_LOCALE: Browser locale (e.g., en-US, es-ES)
-    - USER_AGENT: Custom user agent string
+    Context options come from the active strategy.
+    Tests can override options by using browser_manager.new_context() directly.
     """
-    # Get configuration from Config
-    viewport = Config.get_viewport_size()
-    locale = Config.get_browser_locale()
-    user_agent = Config.get_user_agent()
-    
-    context = await browser.new_context(
-        viewport=viewport,
-        locale=locale,
-        user_agent=user_agent,
-        ignore_https_errors=True,
-    )
-    yield context
-    await context.close()
+    ctx = await browser_manager.new_context()
+    yield ctx
+    await ctx.close()
 
 # --- Screenshots directory cleanup --------------------------------------------
 @pytest.fixture(scope="session", autouse=True)
@@ -157,21 +142,15 @@ def clean_screenshots() -> None:
     logger.info(f"Screenshots directory cleaned: {screenshots_dir}")
 
 # --- Pages registry -----------------------------------------------------------
+# --- Page fixture (modern approach) ------------------------------------------
 @pytest_asyncio.fixture(scope="function")
-async def pages_registry() -> AsyncGenerator[List[Page], None]:
-    """Keeps track of all opened pages during test execution."""
-    registry: List[Page] = []
-    yield registry
-    registry.clear()
-
-@pytest_asyncio.fixture(scope="function")
-async def page(context: BrowserContext, pages_registry: list[Page]) -> AsyncGenerator[Page, None]:
+async def page(context: BrowserContext) -> AsyncGenerator[Page, None]:
     """
     Provides a single Playwright Page object per test.
+    
+    The page is automatically closed after the test completes.
     """
     page = await context.new_page()
-    pages_registry.append(page)
-    
     yield page
     await page.close()
 
@@ -182,40 +161,7 @@ async def login(page: Page):
         return await LoginPage(page).login(username, password, url)
     return _connect_to_environment
 
-# --- Screenshot + Allure integration on failure -------------------------------
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
-def pytest_runtest_makereport(item, call):
-    """
-    Hook to capture screenshots when a test fails.
-    
-    Screenshots are only captured if SCREENSHOT_ON_FAILURE=true in .env
-    """
-    outcome = yield
-    rep = outcome.get_result()
-
-    if rep.when == "call" and rep.failed:
-        # Check if screenshots should be captured
-        if not Config.should_screenshot_on_failure():
-            logger.debug("Screenshot on failure disabled by config")
-            return
-        
-        pages_registry = item.funcargs.get("pages_registry", [])
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        match = re.search(r"\[([^\s\]]+)", item.nodeid)
-        base_name = (match.group(1) if match else item.nodeid.split("[")[0])[:50]
-
-        for i, page in enumerate(pages_registry):
-            filename = f"screenshots/{base_name}_page{i+1}_{timestamp}.png"
-            try:
-                item.funcargs["event_loop"].run_until_complete(page.screenshot(path=filename))
-                with open(filename, "rb") as f:
-                    allure.attach(f.read(), name=os.path.basename(filename), attachment_type=AttachmentType.PNG)
-                logger.info(f"📸 Screenshot captured and attached to Allure: {filename}")
-            except Exception as e:
-                raise Exception(f"Error capturing screenshot: {e}") from e
-
-
+# --- API Client fixture -------------------------------------------------------
 @pytest_asyncio.fixture
 async def api_client(playwright):
     """
