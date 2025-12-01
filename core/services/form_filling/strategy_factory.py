@@ -138,3 +138,26 @@ class StrategyFactory:
             logger.debug(f"Clearing field '{selector}'")
             await strategy.clear_and_validate(field)
 
+
+    async def validate_edit_view(self, expected_data: dict) -> None:
+        """
+        Validate multiple fields in edit view based on the provided expected_data dictionary.
+        Args:
+            expected_data (Dict[str, Any]): A dictionary mapping field selectors to expected values.
+        Examples:
+            >>> await strategy_factory.validate_edit_view({
+            ...     "#username": "newuser",
+            ...     "#password": "newpass",
+            ...     "#remember-me": False,
+            ...     "#profile-picture": "/path/to/newpic.jpg",
+            ...     "#birthdate": "1992-02-02",
+            ...     "#country": "CA",
+            ...     "#hobbies": ["gaming", "cooking"],
+            ... })
+        """
+        for selector, expected_value in expected_data.items():
+            field = await self.resolver.resolve_field(selector)
+            strategy = await self.get_strategy(field)
+
+            logger.debug(f"Validating field '{selector}' has expected value: {expected_value}")
+            await strategy.validate_in_edit_view(field, expected_value)
