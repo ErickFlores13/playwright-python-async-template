@@ -3,10 +3,8 @@ from functools import cached_property
 from playwright.async_api import Page
 
 from core.ui.services.attribute import Attribute
-from core.ui.services.file import FileHandler
 from core.ui.services.form.element_resolver import ElementResolver
 from core.ui.services.form.strategy_factory import StrategyFactory
-from core.ui.services.mouse import Mouse
 from core.ui.services.screenshot import Screenshot
 from core.ui.services.storage import Storage
 from core.ui.services.tab_window import TabWindow
@@ -26,16 +24,19 @@ class BasePage:
     - attribute: DOM attribute manipulation for security/validation testing
     - element_resolver: Service for resolving and interacting with web elements
     - strategy_factory: Factory for form field interaction strategies
-    - file: Service for handling file upload and download operations
-    - mouse: Service for mouse interactions
     - screenshot: Service for taking screenshots
     - storage: Service for managing local and session storage
     - tab_window: Service for managing browser tabs
     - validation: Service for validating page states and elements
     - wait: Service for managing page load and element wait strategies
 
-    Note: For simple element queries (text, visibility checks), use Playwright's
-    locator API directly rather than creating wrapper services.
+    Components (for file operations):
+    - Use FileComponent directly: FileComponent(page, selector)
+
+    Note: For simple operations, use Playwright's API directly:
+    - Mouse: page.locator(selector).hover(), .dblclick(), .click(button='right'), .drag_to()
+    - Text: page.locator(selector).inner_text(), .text_content()
+    - Click: page.locator(selector).click()
     """
 
     def __init__(self, page: Page):
@@ -56,16 +57,6 @@ class BasePage:
     def strategy_factory(self) -> StrategyFactory:
         """Factory for form field interaction strategies."""
         return StrategyFactory(self.element_resolver)
-
-    @cached_property
-    def file(self) -> FileHandler:
-        """Service for handling file upload and download operations."""
-        return FileHandler(self.page)
-
-    @cached_property
-    def mouse(self) -> Mouse:
-        """Service for mouse interactions."""
-        return Mouse(self.page)
 
     @cached_property
     def screenshot(self) -> Screenshot:
