@@ -223,6 +223,73 @@ class Config:
         """Check if running in CI environment."""
         return os.getenv("CI", "false").lower() == "true"
 
+    # ========== AI Healing Settings ==========
+    @staticmethod
+    def get_ai_healing_enabled() -> bool:
+        """Check if AI-powered locator healing is enabled."""
+        return os.getenv("AI_HEALING_ENABLED", "false").lower() == "true"
+
+    @staticmethod
+    def get_openai_api_key() -> str:
+        """Get OpenAI API key for AI healing."""
+        return os.getenv("OPENAI_API_KEY", "")
+
+    @staticmethod
+    def get_ai_confidence_threshold() -> float:
+        """Get confidence threshold for auto-applying healed selectors (0.0-1.0)."""
+        try:
+            return float(os.getenv("AI_CONFIDENCE_THRESHOLD", "0.8"))
+        except ValueError:
+            return 0.8
+
+    @staticmethod
+    def get_visual_extraction_enabled() -> bool:
+        """Check if visual extraction strategy is enabled (last resort, expensive)."""
+        return os.getenv("VISUAL_EXTRACTION_ENABLED", "false").lower() == "true"
+
+    @staticmethod
+    def get_visual_screenshot_full_page() -> bool:
+        """Check if visual strategy should capture full page or viewport only."""
+        return os.getenv("VISUAL_SCREENSHOT_FULL_PAGE", "false").lower() == "true"
+
+    @staticmethod
+    def get_visual_max_width() -> int:
+        """Get maximum screenshot width for visual strategy (cost control)."""
+        try:
+            return int(os.getenv("VISUAL_MAX_WIDTH", "1920"))
+        except ValueError:
+            return 1920
+
+    @staticmethod
+    def get_visual_max_height() -> int:
+        """Get maximum screenshot height for visual strategy (cost control)."""
+        try:
+            return int(os.getenv("VISUAL_MAX_HEIGHT", "1080"))
+        except ValueError:
+            return 1080
+
+    # ========== Wrapper Settings ==========
+    @staticmethod
+    def get_retry_enabled() -> bool:
+        """Check if retry wrapper is enabled."""
+        return os.getenv("RETRY_ENABLED", "true").lower() == "true"
+
+    @staticmethod
+    def get_retry_max_attempts() -> int:
+        """Get maximum retry attempts (default: 3)."""
+        try:
+            return int(os.getenv("RETRY_MAX_ATTEMPTS", "3"))
+        except ValueError:
+            return 3
+
+    @staticmethod
+    def get_retry_delay() -> float:
+        """Get delay between retries in seconds (default: 1.0)."""
+        try:
+            return float(os.getenv("RETRY_DELAY", "1.0"))
+        except ValueError:
+            return 1.0
+
 
 # Singleton instance for easy access
 config = Config()
