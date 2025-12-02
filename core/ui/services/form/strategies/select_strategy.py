@@ -1,0 +1,44 @@
+import logging
+from typing import Any
+from core.ui.services.form.base_strategy import BaseFieldStrategy
+from core.ui.services.form.field import Field
+from core.ui.components.select import SelectComponent
+
+logger = logging.getLogger(__name__)
+
+class SelectStrategy(BaseFieldStrategy):
+    """Handles native <select> fields using SelectComponent."""
+
+    async def can_handle(self, field: Field) -> bool:
+        """Determine if this strategy can handle the given field."""
+        logger.debug(f"[SelectStrategy] Checking if can handle field {field.selector}")
+        return field.tag == "select"
+
+    async def fill(self, field: Field, value: Any) -> None:
+        """Fill the select field with smart matching (direct partial text - no timeouts)."""
+        component = SelectComponent(field.locator.page, field.selector)
+        if isinstance(value, str):
+            # Direct partial text match - no timeout penalties from trying other methods
+            await component.select_by_partial_text(str(value))
+            logger.debug(f"[SelectStrategy] Selected option containing: {value}")
+        else:
+            raise TypeError(f"Select field expects str, got {type(value).__name__}")
+
+    async def clear_and_validate(self, field: Field) -> None:
+        """Clear and validate the select field."""
+        logger.debug(f"[SelectStrategy] Clearing select field {field.selector}")
+        component = SelectComponent(field.locator.page, field.selector)
+        await component.clear_and_validate()
+
+    async def validate_in_edit_view(self, field: Field, expected_value: Any) -> None:
+        """Validate the select field has the expected option selected in edit view.
+        
+        Args:
+            field: The field to validate
+            expected_value: The expected text (partial match) in the selected option
+        """
+        if not isinstance(expected_value, str):
+            raise TypeError(f"Select field expects str for validation, got {type(expected_value).__name__}")
+        
+        component = SelectComponent(field.locator.page, field.selector)
+        await component.validate(expected_value)

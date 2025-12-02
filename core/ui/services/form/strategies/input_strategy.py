@@ -1,0 +1,38 @@
+import logging
+from typing import Any
+from core.ui.services.form.base_strategy import BaseFieldStrategy
+from core.ui.services.form.field import Field
+from core.ui.components.input import InputComponent
+from core.utils.exceptions import ValidationError
+
+logger = logging.getLogger(__name__)
+
+class InputStrategy(BaseFieldStrategy):
+    """Strategy to handle text-like inputs (text, textarea, password, email, search, tel, url, number)."""
+
+    TEXT_INPUT_TYPES = ["text", "textarea", "password", "email", "search", "tel", "url", "number"]
+
+    async def can_handle(self, field: Field) -> bool:
+        """Determine if this strategy can handle the given field."""
+        return field.input_type in self.TEXT_INPUT_TYPES
+
+    async def fill(self, field: Field, value: Any) -> None:
+        """Fill the input field with the provided text value."""
+        if not isinstance(value, str):
+            raise ValidationError("text", f"Text input requires str, got {type(value).__name__}")
+        
+        component = InputComponent(field.locator.page, field.selector)
+        await component.fill(value)
+
+    async def clear_and_validate(self, field: Field) -> None:
+        """Clear the input field and validate it is cleared."""
+        component = InputComponent(field.locator.page, field.selector)
+        await component.clear_and_validate()
+
+    async def validate_in_edit_view(self, field: Field, expected_value: Any) -> None:
+        """Validate the input field has the expected value without clearing it."""
+        if not isinstance(expected_value, str):
+            raise ValidationError("text", f"Text input requires str for validation, got {type(expected_value).__name__}")
+        
+        component = InputComponent(field.locator.page, field.selector)
+        await component.validate(expected_value)

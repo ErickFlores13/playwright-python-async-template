@@ -4,7 +4,7 @@ import time
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
 from playwright.async_api import APIRequestContext
-from utils.exceptions import APIError
+from core.utils.exceptions import APIError
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,6 @@ class APIClient:
             return await response.json()
             
         except Exception as e:
-            logger.error(f"GET request failed for {url}: {e}")
             raise APIError(f"GET {endpoint} failed: {str(e)}") from e
     
     async def post(
@@ -111,7 +110,6 @@ class APIClient:
             return await response.json()
             
         except Exception as e:
-            logger.error(f"POST request failed for {url}: {e}")
             raise APIError(f"POST {endpoint} failed: {str(e)}") from e
     
     async def put(
@@ -149,7 +147,6 @@ class APIClient:
             return await response.json()
             
         except Exception as e:
-            logger.error(f"PUT request failed for {url}: {e}")
             raise APIError(f"PUT {endpoint} failed: {str(e)}") from e
     
     async def patch(
@@ -187,7 +184,6 @@ class APIClient:
             return await response.json()
             
         except Exception as e:
-            logger.error(f"PATCH request failed for {url}: {e}")
             raise APIError(f"PATCH {endpoint} failed: {str(e)}") from e
     
     async def delete(
@@ -227,7 +223,6 @@ class APIClient:
             return await response.json()
             
         except Exception as e:
-            logger.error(f"DELETE request failed for {url}: {e}")
             raise APIError(f"DELETE {endpoint} failed: {str(e)}") from e
     
     async def _validate_response(self, response, expected_status: int) -> None:
@@ -263,7 +258,7 @@ class APIClient:
             await api.set_bearer_token("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
         """
         await self.set_extra_headers({"Authorization": f"Bearer {token}"})
-        logger.info("Bearer token authentication set")
+        logger.debug("Bearer token authentication set")
     
     async def set_api_key(self, api_key: str, header_name: str = "X-API-Key") -> None:
         """
@@ -278,7 +273,7 @@ class APIClient:
             await api.set_api_key("key-123", header_name="Authorization")
         """
         await self.set_extra_headers({header_name: api_key})
-        logger.info(f"API Key authentication set (header: {header_name})")
+        logger.debug(f"API Key authentication set (header: {header_name})")
     
     async def set_basic_auth(self, username: str, password: str) -> None:
         """
@@ -294,7 +289,7 @@ class APIClient:
         import base64
         credentials = base64.b64encode(f"{username}:{password}".encode()).decode()
         await self.set_extra_headers({"Authorization": f"Basic {credentials}"})
-        logger.info("Basic authentication set")
+        logger.debug("Basic authentication set")
     
     async def set_extra_headers(self, headers: Dict[str, str]) -> None:
         """
@@ -323,7 +318,7 @@ class APIClient:
             public_data = await api.get("/public/health")
         """
         await self.set_extra_headers({"Authorization": ""})
-        logger.info("Authentication cleared")
+        logger.debug("Authentication cleared")
     
     # ========================================================================
     # FILE UPLOAD & DOWNLOAD
@@ -385,11 +380,10 @@ class APIClient:
             response = await self.request.post(url, multipart=multipart)
             await self._validate_response(response, expected_status)
             
-            logger.info(f"File uploaded successfully: {file_path_obj.name} to {endpoint}")
+            logger.debug(f"File uploaded successfully: {file_path_obj.name} to {endpoint}")
             return await response.json()
             
         except Exception as e:
-            logger.error(f"File upload failed for {endpoint}: {e}")
             raise APIError(f"Upload {endpoint} failed: {str(e)}") from e
     
     async def download_file(
@@ -435,11 +429,10 @@ class APIClient:
             file_content = await response.body()
             save_path_obj.write_bytes(file_content)
             
-            logger.info(f"File downloaded successfully to: {save_path}")
+            logger.debug(f"File downloaded successfully to: {save_path}")
             return str(save_path_obj)
             
         except Exception as e:
-            logger.error(f"File download failed for {endpoint}: {e}")
             raise APIError(f"Download {endpoint} failed: {str(e)}") from e
     
     def _get_mime_type(self, file_path: Path) -> str:
@@ -504,11 +497,11 @@ class APIClient:
         all_items = []
         page = 1
         
-        logger.info(f"Starting paginated fetch from {endpoint}")
+        logger.debug(f"Starting paginated fetch from {endpoint}")
         
         while True:
             if max_pages and page > max_pages:
-                logger.info(f"Reached max_pages limit: {max_pages}")
+                logger.debug(f"Reached max_pages limit: {max_pages}")
                 break
             
             params = {page_param: page, limit_param: limit}
@@ -523,24 +516,23 @@ class APIClient:
                     items = response if isinstance(response, list) else []
                 
                 if not items:
-                    logger.info(f"No more items found at page {page}")
+                    logger.debug(f"No more items found at page {page}")
                     break
                 
                 all_items.extend(items)
-                logger.info(f"Fetched page {page}: {len(items)} items (total: {len(all_items)})")
+                logger.debug(f"Fetched page {page}: {len(items)} items (total: {len(all_items)})")
                 
                 # Check if there are more pages
                 if len(items) < limit:
-                    logger.info("Last page reached (fewer items than limit)")
+                    logger.debug("Last page reached (fewer items than limit)")
                     break
                 
                 page += 1
                 
             except Exception as e:
-                logger.error(f"Pagination stopped at page {page}: {e}")
-                break
+                raise APIError(f"Pagination failed at page {page}: {str(e)}") from e
         
-        logger.info(f"Pagination complete. Total items fetched: {len(all_items)}")
+        logger.debug(f"Pagination complete. Total items fetched: {len(all_items)}")
         return all_items
     
     # ========================================================================
@@ -605,8 +597,7 @@ class APIClient:
                     )
                     await asyncio.sleep(wait_time)
                 else:
-                    logger.error(f"Request failed after {attempt + 1} attempts")
-                    raise
+                    raise APIError(f"Request failed after {attempt + 1} attempts: {str(e)}") from e
     
     # ========================================================================
     # PERFORMANCE TIMING
@@ -639,7 +630,7 @@ class APIClient:
         response = await self.get(endpoint, params=params, headers=headers, expected_status=expected_status)
         elapsed = time.time() - start_time
         
-        logger.info(f"GET {endpoint} completed in {elapsed:.3f}s")
+        logger.debug(f"GET {endpoint} completed in {elapsed:.3f}s")
         return response, elapsed
     
     async def post_with_timing(
@@ -669,7 +660,7 @@ class APIClient:
         response = await self.post(endpoint, data=data, headers=headers, expected_status=expected_status)
         elapsed = time.time() - start_time
         
-        logger.info(f"POST {endpoint} completed in {elapsed:.3f}s")
+        logger.debug(f"POST {endpoint} completed in {elapsed:.3f}s")
         return response, elapsed
     
     async def add_mock(self, pattern: str, response_body: str, status: int = 200, headers: dict = None):

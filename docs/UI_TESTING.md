@@ -619,6 +619,43 @@ await page_object.select_multiple_in_select2(
 
 ---
 
+## Using Select2 Dropdowns in Page Objects
+
+Some forms use Select2 dropdowns for enhanced selection features. If you want to enable Select2 support, you must declare the following attributes in your page class:
+
+```python
+class MyPage(BasePage):
+    use_select2 = True
+    remove_options_selector = 'button[title="Remove all items"]'
+    searcher_selector = '.select2-search__field'
+    select2_indicator = 'data-select2-id'
+```
+
+**Required Attributes:**
+- `use_select2` (bool): Enable Select2 support in form filling.
+- `remove_options_selector` (str): Selector for removing all Select2 options; it's the elment that appears in the field when you want to remove the selected options.
+- `searcher_selector` (str): Selector for the Select2 search input field. It is the element that allows you to search into the select.
+- `select2_indicator` (str): Attribute indicating Select2 presence on the element. The fully selector of the select2 element.
+
+**How to Use:**
+- Set these attributes in your page object class before using any Select2 dropdowns.
+- The `FormFillingMixin` will automatically handle Select2 dropdowns if these attributes are set and `use_select2` is `True`.
+- For native HTML selects, set `use_select2 = False`.
+
+**Example:**
+```python
+class UserFormPage(BasePage):
+    use_select2 = True
+    remove_options_selector = 'button[title="Remove all items"]'
+    searcher_selector = '.select2-search__field'
+    select2_indicator = 'data-select2-id'
+    # ... other selectors and methods ...
+```
+
+See the mixin docstring for more details on required attributes and configuration.
+
+---
+
 ## Best Practices
 
 ### ✅ DO
