@@ -1,11 +1,11 @@
 # UI Framework - Developer Guide
 
-**For:** Senior SDETs & Framework Maintainers
+**For:** Senior SDETs & Framework Maintainers  
 **Purpose:** Maintain, scale, and enhance the framework following best practices
 
-> **Just using the framework?** See [README.md](./README.md) for user documentation
-
----
+> **Just using the framework?** See [README.md](./README.md) for user documentation  
+> **AI-Powered Selector Healing?** See [ai/README.md](./ai/README.md)
+> **Traditional POM approach?** See [docs/UI_TESTING.md](../../docs/UI_TESTING.md) for legacy pattern---
 
 ## Table of Contents
 
@@ -1317,3 +1317,15 @@ class StrategyFactory:
 ---
 
 **Questions?** Contact the SDET team or open an issue.
+
+---
+
+## Related Documentation
+
+- **User Guide:** [README.md](./README.md) - How to use the framework
+- **AI-Powered Selector Healing:** [ai/README.md](./ai/README.md) - Automatic selector recovery with AI
+- **UI Testing Guide:** [docs/UI_TESTING.md](../../docs/UI_TESTING.md) - Traditional POM approach
+- **API Testing:** [docs/API_TESTING.md](../../docs/API_TESTING.md)
+- **Database Testing:** [docs/DATABASE_TESTING.md](../../docs/DATABASE_TESTING.md)
+- **Examples:** `pages/examples/complex_form_page.py`, `pages/examples/complex_form_page_vanilla.py`
+

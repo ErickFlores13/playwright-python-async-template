@@ -1,11 +1,10 @@
 # UI Framework - User Guide
 
-**For:** QA Testers & SDETs
+**For:** QA Testers & SDETs  
 **Purpose:** Learn how to use the framework to automate test cases
 
-> **Maintaining/Extending the framework?** See [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)
-
----
+> **Maintaining/Extending the framework?** See [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)  
+> **AI-Powered Selector Healing?** See [ai/README.md](./ai/README.md)  
 
 ## Table of Contents
 
@@ -1332,6 +1331,8 @@ class FormPage(BasePage):
 
 - **Full Example:** See `pages/examples/complex_form_page.py` for complete implementation
 - **Comparison:** See `pages/examples/complex_form_page_vanilla.py` for manual Playwright version
+- **AI-Powered Selector Healing:** See [ai/README.md](./ai/README.md) for automatic selector recovery
+- **UI Testing Guide:** See [docs/UI_TESTING.md](../../docs/UI_TESTING.md) for traditional POM approach
 - **Framework Extension:** See [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) for maintaining/extending
 
 ---
