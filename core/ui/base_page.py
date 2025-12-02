@@ -2,6 +2,7 @@ from functools import cached_property
 
 from playwright.async_api import Page
 
+from core.ui.services.attribute import Attribute
 from core.ui.services.file import FileHandler
 from core.ui.services.form.element_resolver import ElementResolver
 from core.ui.services.form.strategy_factory import StrategyFactory
@@ -20,15 +21,21 @@ class BasePage:
 
     Designed to be used as part of a modular Page Object Model for test automation.
     Uses cached properties to initialize services only when accessed.
-    - element_resolver: Service for resolving and interacting with web elements.
-    - strategy_factory: Factory for form field interaction strategies.
-    - file: Service for handling file upload and download operations.
-    - mouse: Service for mouse interactions.
-    - screenshot: Service for taking screenshots.
-    - storage: Service for managing local and session storage.
-    - tab_window: Service for managing browser tabs.
-    - validation: Service for validating page states and elements.
-    - wait: Service for waiting and synchronization.
+
+    Services:
+    - attribute: DOM attribute manipulation for security/validation testing
+    - element_resolver: Service for resolving and interacting with web elements
+    - strategy_factory: Factory for form field interaction strategies
+    - file: Service for handling file upload and download operations
+    - mouse: Service for mouse interactions
+    - screenshot: Service for taking screenshots
+    - storage: Service for managing local and session storage
+    - tab_window: Service for managing browser tabs
+    - validation: Service for validating page states and elements
+    - wait: Service for managing page load and element wait strategies
+
+    Note: For simple element queries (text, visibility checks), use Playwright's
+    locator API directly rather than creating wrapper services.
     """
 
     def __init__(self, page: Page):
@@ -36,37 +43,51 @@ class BasePage:
         self.timeout = Config.get_timeout()
 
     @cached_property
+    def attribute(self) -> Attribute:
+        """Service for manipulating DOM attributes (for security/validation testing)."""
+        return Attribute(self.page)
+
+    @cached_property
     def element_resolver(self) -> ElementResolver:
+        """Service for resolving and interacting with web elements."""
         return ElementResolver(self.page)
 
     @cached_property
     def strategy_factory(self) -> StrategyFactory:
+        """Factory for form field interaction strategies."""
         return StrategyFactory(self.element_resolver)
 
     @cached_property
     def file(self) -> FileHandler:
+        """Service for handling file upload and download operations."""
         return FileHandler(self.page)
 
     @cached_property
     def mouse(self) -> Mouse:
+        """Service for mouse interactions."""
         return Mouse(self.page)
 
     @cached_property
     def screenshot(self) -> Screenshot:
+        """Service for taking screenshots."""
         return Screenshot(self.page)
 
     @cached_property
     def storage(self) -> Storage:
+        """Service for managing local and session storage."""
         return Storage(self.page)
 
     @cached_property
     def tab_window(self) -> TabWindow:
+        """Service for managing browser tabs and windows."""
         return TabWindow(self.page)
 
     @cached_property
     def validation(self) -> Validation:
+        """Service for validating page states and elements."""
         return Validation(self.page)
 
     @cached_property
     def wait(self) -> Wait:
+        """Service for managing page load and element wait strategies."""
         return Wait(self.page)
