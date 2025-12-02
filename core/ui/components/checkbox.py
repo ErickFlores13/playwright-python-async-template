@@ -1,7 +1,9 @@
 import logging
-from playwright.async_api import Page, Locator, expect
+
+from playwright.async_api import Locator, Page, expect
 
 logger = logging.getLogger(__name__)
+
 
 class CheckboxComponent:
     """Wrapper for a single checkbox input."""
@@ -31,7 +33,6 @@ class CheckboxComponent:
             await self.locator.check()
         else:
             logger.debug(f"[Checkbox] {self.selector} is already checked")
-            pass
 
     async def uncheck(self) -> None:
         """Uncheck the checkbox."""
@@ -46,12 +47,14 @@ class CheckboxComponent:
 
     async def validate(self, expected_checked: bool) -> None:
         """Validate that the checkbox matches the expected state.
-        
+
         Args:
             expected_checked: True if checkbox should be checked, False if unchecked
         """
         await self.wait_for_visible()
-        logger.debug(f"[Checkbox] Validating {self.selector} is {'checked' if expected_checked else 'unchecked'}")
+        logger.debug(
+            f"[Checkbox] Validating {self.selector} is {'checked' if expected_checked else 'unchecked'}"
+        )
         if expected_checked:
             await expect(self.locator).to_be_checked()
         else:

@@ -8,7 +8,6 @@ from typing import Optional
 
 from playwright.async_api import Page
 
-from .base_strategy import ExtractionStrategy
 from .form_context_strategy import FormContextStrategy
 from .same_type_strategy import SameTypeStrategy
 from .visual_strategy import VisualStrategy, supports_vision_model

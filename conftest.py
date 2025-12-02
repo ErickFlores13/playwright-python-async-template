@@ -1,21 +1,9 @@
-"""
-conftest.py — Core pytest configuration for async Playwright tests.
-
-Includes:
-- Browser management with Strategy pattern
-- Database (Postgres) and Redis connections
-- Structured logging and async-safe teardown
-- Test fixtures (browser, page, context, etc.)
-
-Note: Pytest hooks are defined in core/reporting/pytest_hooks.py
-"""
-
 import asyncio
 import logging
 import os
 import shutil
 import sys
-from typing import AsyncGenerator, Generator, List
+from typing import AsyncGenerator, Generator
 
 import pytest
 import pytest_asyncio

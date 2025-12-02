@@ -1,11 +1,12 @@
 import logging
-from playwright.async_api import Page, TimeoutError as PlaywrightTimeoutError
-from core.utils.exceptions import (
-    ElementNotFoundError, 
-    ConfigurationError,
-)
+
+from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+
+from core.utils.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
+
 
 class Wait:
     """
@@ -15,12 +16,10 @@ class Wait:
     def __init__(self, page: Page) -> None:
         if not page:
             raise ConfigurationError(
-                config_key="page",
-                message="Page instance cannot be None or empty"
+                config_key="page", message="Page instance cannot be None or empty"
             )
-            
+
         self.page = page
-        
 
     async def wait_for_page_load(self, timeout: int = 30000) -> None:
         logger.debug("Waiting for page full load (networkidle preferred)")

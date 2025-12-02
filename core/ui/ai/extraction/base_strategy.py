@@ -3,7 +3,6 @@ Base class for element extraction strategies.
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict
 
 from playwright.async_api import Page
 

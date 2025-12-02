@@ -1,7 +1,9 @@
 import logging
-from playwright.async_api import Page, Locator, TimeoutError, expect
+
+from playwright.async_api import Locator, Page, expect
 
 logger = logging.getLogger(__name__)
+
 
 class RadioComponent:
     """Wrapper for a radio input group."""
@@ -32,19 +34,21 @@ class RadioComponent:
         count = await self.locator.locator("input[type='radio']:checked").count()
         if count == 0:
             return ""
-        radio_value = await self.locator.locator("input[type='radio']:checked").first.get_attribute("value")
+        radio_value = await self.locator.locator("input[type='radio']:checked").first.get_attribute(
+            "value"
+        )
         logger.debug(f"[Radio] Selected value in {self.selector} is '{radio_value}'")
         return radio_value
 
     async def validate(self, expected_value: str) -> None:
         """Validate that the radio button with the expected value is selected.
-        
+
         Args:
             expected_value: The expected value of the selected radio button
         """
         await self.wait_for_visible()
         logger.debug(f"[Radio] Validating {self.selector} has value '{expected_value}' selected")
-        
+
         # Validate that the radio button with the expected value is checked
         radio_with_value = self.locator.locator(f"input[type='radio'][value='{expected_value}']")
         await expect(radio_with_value).to_be_checked()
