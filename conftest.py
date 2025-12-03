@@ -14,7 +14,6 @@ from core.reporting.pytest_hooks import pytest_runtest_makereport  # noqa: F401
 from core.ui.browser.browser_manager import BrowserManager
 from core.ui.browser.strategies.strategy_factory import get_browser_strategy
 from core.utils.logger_config import configure_logging
-from helpers.api_client import APIClient
 from helpers.database import DatabaseClient
 
 # Custom imports
@@ -161,83 +160,6 @@ async def login(page: Page):
         return await LoginPage(page).login(username, password, url)
 
     return _connect_to_environment
-
-
-# --- API Client fixture -------------------------------------------------------
-@pytest_asyncio.fixture
-async def api_client(playwright):
-    """
-    Provides API client factory for creating clients to different APIs.
-
-    Returns a factory function that creates API clients with custom base URLs.
-    Default uses API_BASE_URL from environment if no URL is provided.
-
-    Example:
-        @pytest.mark.asyncio
-        async def test_single_api(api_client):
-            # Use default API_BASE_URL from .env
-            client = await api_client()
-            await client.set_bearer_token(os.getenv("API_BEARER_TOKEN"))
-            response = await client.get("/users")
-
-        @pytest.mark.asyncio
-        async def test_multiple_apis(api_client):
-            # Test integration between two different APIs
-            auth_api = await api_client("https://auth.example.com")
-            data_api = await api_client("https://api.example.com")
-
-            # Login to auth API
-            login_resp = await auth_api.post("/auth/login", data={...})
-            token = login_resp["token"]
-
-            # Use token with data API
-            await data_api.set_bearer_token(token)
-            users = await data_api.get("/users")
-
-        @pytest.mark.asyncio
-        async def test_env_based_apis(api_client):
-            # Use environment variables for different services
-            auth_client = await api_client(os.getenv("AUTH_API_URL"))
-            payment_client = await api_client(os.getenv("PAYMENT_API_URL"))
-            notification_client = await api_client(os.getenv("NOTIFICATION_API_URL"))
-    """
-    contexts = []
-
-    async def _create_client(base_url: str = None, headers: dict = None):
-        """
-        Create an API client for a specific base URL.
-
-        Args:
-            base_url: Base URL for the API. If None, uses API_BASE_URL from .env
-            headers: Additional headers to include in all requests
-
-        Returns:
-            APIClient instance configured for the specified API
-        """
-        url = base_url or os.getenv("API_BASE_URL")
-        if not url:
-            raise ValueError(
-                "No API base URL provided. Either pass base_url parameter or set API_BASE_URL in .env"
-            )
-
-        default_headers = {"Content-Type": "application/json", "Accept": "application/json"}
-
-        # Merge custom headers with defaults
-        if headers:
-            default_headers.update(headers)
-
-        request_context = await playwright.request.new_context(
-            base_url=url, extra_http_headers=default_headers
-        )
-        contexts.append(request_context)
-
-        return APIClient(request_context, url)
-
-    yield _create_client
-
-    # Cleanup all created contexts
-    for ctx in contexts:
-        await ctx.dispose()
 
 
 # --- Database fixtures --------------------------------------------------------
