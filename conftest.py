@@ -18,7 +18,7 @@ from helpers.database import DatabaseClient
 
 # Custom imports
 from helpers.redis_client import RedisClient
-from pages.base_pages.login_page import LoginPage
+from services.base_pages.login_page import LoginPage
 from utils.config import Config
 
 # Ensure package imports work regardless of execution path
