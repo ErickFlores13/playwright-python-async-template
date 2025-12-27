@@ -13,19 +13,14 @@ class CompositeAuth(AuthStrategy):
     are merged (later strategies override earlier ones on conflict).
 
     Example:
-        >>> # API Key + Bearer Token
-        >>> auth = CompositeAuth([
-        ...     APIKeyAuth("api-key-123", "X-API-Key"),
-        ...     BearerTokenAuth("jwt-token")
-        ... ])
-        >>> headers = await auth.get_auth_headers()
-        >>> # {'X-API-Key': 'api-key-123', 'Authorization': 'Bearer jwt-token'}
-
-        >>> # From environment
-        >>> auth = CompositeAuth([
-        ...     APIKeyAuth.from_env("STRIPE_API_KEY"),
-        ...     CustomHeaderAuth.from_env({'X-User-ID': 'USER_ID'})
-        ... ])
+        API KEY + Bearer Token:
+        ```
+        api_key_auth = APIKeyAuth("sk_test_abc123", header_name="X-API-Key")
+        bearer_auth = BearerTokenAuth("eyJhbGci...")
+        composite_auth = CompositeAuth([api_key_auth, bearer_auth])
+        headers = await composite_auth.get_auth_headers()
+        # {'X-API-Key': 'sk_test_abc123', 'Authorization': 'Bearer eyJhbGci...'}
+        ```
     """
 
     def __init__(self, strategies: list[AuthStrategy]):
@@ -35,8 +30,10 @@ class CompositeAuth(AuthStrategy):
         Args:
             strategies: List of auth strategies to combine
         """
+
         if not strategies:
             raise ValueError("At least one strategy is required")
+
         self.strategies = strategies
 
     async def get_auth_headers(self) -> Dict[str, str]:
