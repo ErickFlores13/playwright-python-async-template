@@ -1,7 +1,7 @@
 """API Key authentication strategy."""
 
-from typing import Dict
-
+from typing import Dict, Optional
+from utils.config import Config
 from ..base import AuthStrategy
 
 
@@ -34,24 +34,27 @@ class APIKeyAuth(AuthStrategy):
         return {self.header_name: self.api_key}
 
     @classmethod
-    def from_env(cls, env_var: str = "API_KEY", header_name: str = "X-API-Key") -> "APIKeyAuth":
+    def from_env(
+        cls, 
+        api_key: Optional[str] = None, 
+        header_name: Optional[str] = None,
+        ) -> "APIKeyAuth":
         """
-        Create from environment variable.
+        Create APIKeyAuth from environment variables.
 
         Args:
-            env_var: Environment variable name (default: 'API_KEY')
-            header_name: Header name (default: 'X-API-Key')
-
+            api_key: API key value (if None, read from config)
+            header_name: Header name (if None, read from config)
+            
         Returns:
             APIKeyAuth instance
-
-        Example:
-            >>> # .env: STRIPE_API_KEY=sk_test_abc123
-            >>> auth = APIKeyAuth.from_env("STRIPE_API_KEY", header_name="Authorization")
         """
-        import os
+        api_key = api_key or Config.get_api_key()
+        header_name = header_name or Config.get_api_key_header_name()
 
-        api_key = os.getenv(env_var)
         if not api_key:
-            raise ValueError(f"Environment variable '{env_var}' not found")
+            raise ValueError(f"API key not found")
+        if not header_name:
+            raise ValueError(f"API key header name not found")
+
         return cls(api_key, header_name)
