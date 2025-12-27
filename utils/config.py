@@ -342,6 +342,27 @@ class Config:
         """Get API password for login flows or basic auth."""
         return os.getenv("API_PASSWORD", Config.get_test_password())
 
+    # ========== OAuth2 Settings ==========
+    @staticmethod
+    def get_oauth_client_id() -> str:
+        """Get OAuth2 client ID."""
+        return os.getenv("OAUTH_CLIENT_ID", "")
+
+    @staticmethod
+    def get_oauth_client_secret() -> str:
+        """Get OAuth2 client secret."""
+        return os.getenv("OAUTH_CLIENT_SECRET", "")
+
+    @staticmethod
+    def get_oauth_token_url() -> str:
+        """Get OAuth2 token endpoint URL."""
+        return os.getenv("OAUTH_TOKEN_URL", "")
+
+    @staticmethod
+    def get_oauth_scope() -> str:
+        """Get OAuth2 scope (space-separated scopes)."""
+        return os.getenv("OAUTH_SCOPE", "")
+
 
 # Singleton instance for easy access
 config = Config()
