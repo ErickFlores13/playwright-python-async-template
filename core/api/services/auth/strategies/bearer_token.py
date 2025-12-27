@@ -3,6 +3,8 @@
 import time
 from typing import Dict, Optional
 
+from utils.config import Config
+
 from ..base import AuthStrategy
 
 
@@ -45,24 +47,25 @@ class BearerTokenAuth(AuthStrategy):
         return time.time() >= (self.expires_at - 60)
 
     @classmethod
-    def from_env(cls, env_var: str = "API_TOKEN", token_type: str = "Bearer") -> "BearerTokenAuth":
+    def from_env(
+        cls,
+        api_token: Optional[str] = None,
+        token_type: Optional[str] = None,
+    ) -> "BearerTokenAuth":
         """
-        Create from environment variable.
+        Create BearerTokenAuth from environment variables.
 
         Args:
-            env_var: Environment variable name (default: 'API_TOKEN')
-            token_type: Token type (default: 'Bearer')
+            api_token: API token value (if None, read from config)
+            token_type: Token type (if None, defaults to 'Bearer')
 
         Returns:
             BearerTokenAuth instance
-
-        Example:
-            >>> # .env: API_TOKEN=eyJhbGci...
-            >>> auth = BearerTokenAuth.from_env("API_TOKEN")
         """
-        import os
+        token = api_token or Config.get_api_bearer_token()
+        token_type = token_type or "Bearer"
 
-        token = os.getenv(env_var)
         if not token:
-            raise ValueError(f"Environment variable '{env_var}' not found")
+            raise ValueError("API token not provided in environment")
+
         return cls(token, token_type)
