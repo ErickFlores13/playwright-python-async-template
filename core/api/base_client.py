@@ -1,18 +1,19 @@
 import logging
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Union, Literal
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from playwright.async_api import APIRequestContext
 
 from core.api.config import HTTPConfig
 from core.api.http_client import HTTPClient
-from core.api.services.response.api_response import APIResponseWrapper
 from core.api.services.auth import APIKeyAuth, AuthStrategy, BasicAuth, BearerTokenAuth
+from core.api.services.response.api_response import APIResponseWrapper
 from core.api.services.validation import ValidationService
 
 logger = logging.getLogger(__name__)
 
 HTTPMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
+
 
 class BaseAPIClient:
     """
@@ -266,16 +267,16 @@ class BaseAPIClient:
             headers=headers,
             expected_status=expected_status,
         )
-    
+
     async def _execute_request(
         self,
         method: HTTPMethod,
         endpoint: str,
         data: Optional[Any] = None,
-        params: Optional[Dict[str, Any]] = None,    
+        params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
-        expected_status: Union[int, List[int]] = None
-        ) -> APIResponseWrapper:
+        expected_status: Union[int, List[int]] = None,
+    ) -> APIResponseWrapper:
         """
         Generalized request method.
 
@@ -306,7 +307,7 @@ class BaseAPIClient:
 
         if expected_status is not None:
             self.validation.validate_status_code(response, expected_status)
-            
+
         return response
 
     def _build_url(self, endpoint: str) -> str:
@@ -357,11 +358,11 @@ class BaseAPIClient:
     # Authentication convenience methods
 
     def set_bearer_token(
-            self, 
-            token: Optional[str] = None, 
-            token_type: Optional[str] = None, 
-            expires_at: Optional[float] = None
-        ) -> None:
+        self,
+        token: Optional[str] = None,
+        token_type: Optional[str] = None,
+        expires_at: Optional[float] = None,
+    ) -> None:
         """
         Configure Bearer token authentication.
 
@@ -380,11 +381,7 @@ class BaseAPIClient:
             self._auth_strategy.expires_at = expires_at
         logger.info("Bearer token authentication configured")
 
-    def set_api_key(
-            self, 
-            api_key: Optional[str] = None, 
-            header_name: Optional[str] = None
-        ) -> None:
+    def set_api_key(self, api_key: Optional[str] = None, header_name: Optional[str] = None) -> None:
         """
         Configure API key authentication.
 
@@ -398,13 +395,13 @@ class BaseAPIClient:
             >>> client.set_api_key()
         """
         self._auth_strategy = APIKeyAuth.from_env(api_key, header_name)
-        logger.info(f"API key authentication configured (header: {self._auth_strategy.header_name})")
+        logger.info(
+            f"API key authentication configured (header: {self._auth_strategy.header_name})"
+        )
 
     def set_basic_auth(
-            self, 
-            username: Optional[str] = None, 
-            password: Optional[str] = None
-        ) -> None:
+        self, username: Optional[str] = None, password: Optional[str] = None
+    ) -> None:
         """
         Configure Basic authentication.
 
