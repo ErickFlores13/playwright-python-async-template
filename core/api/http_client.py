@@ -5,8 +5,9 @@ from typing import Any, Dict, Optional
 from playwright.async_api import APIRequestContext, APIResponse
 
 from core.api.config import HTTPConfig
-from core.api.models import APIError, APIResponseWrapper, TimeoutError
+from core.api.models import APIError, TimeoutError
 from core.api.services.interceptor import InterceptorService
+from core.api.services.response.api_response import APIResponseWrapper
 from core.api.services.retry import RetryService
 
 logger = logging.getLogger(__name__)
