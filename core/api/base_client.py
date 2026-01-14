@@ -1,14 +1,17 @@
 import logging
 from functools import cached_property
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
 
 from playwright.async_api import APIRequestContext
 
 from core.api.config import HTTPConfig
 from core.api.http_client import HTTPClient
-from core.api.services.auth import APIKeyAuth, AuthStrategy, BasicAuth, BearerTokenAuth
+from core.api.services.auth import APIKeyAuth, BasicAuth, BearerTokenAuth
 from core.api.services.response.api_response import APIResponseWrapper
 from core.api.services.validation import ValidationService
+
+if TYPE_CHECKING:
+    from core.api.services.auth.base import AuthStrategy
 
 logger = logging.getLogger(__name__)
 
