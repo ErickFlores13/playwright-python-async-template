@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from playwright.async_api import APIResponse
@@ -6,6 +7,7 @@ from playwright.async_api import APIResponse
 logger = logging.getLogger(__name__)
 
 
+@dataclass
 class APIResponseWrapper:
     """
     Wrapper for API responses with common metadata.
@@ -57,6 +59,22 @@ class APIResponseWrapper:
     def is_server_error(self) -> bool:
         """Check if response is server error (5xx status code)."""
         return 500 <= self.status_code < 600
+    
+    def get_data_field(self, field: str, default: Any = None) -> Any:
+        """
+        Get a specific field from the response data.
+
+        Args:
+            field: Field name to retrieve
+            default: Default value if field not found  
+        Returns:
+            Value of the field or default
+        Example:
+            >>> user_id = response.get_data_field('id')
+        """
+        if isinstance(self.data, dict):
+            return self.data.get(field, default)
+        return default
 
     def get_header(self, name: str, default: Optional[str] = None) -> Optional[str]:
         """
