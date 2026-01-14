@@ -83,7 +83,6 @@ from core.api.http_client import HTTPClient
 # Models and exceptions
 from core.api.models import (
     APIError,
-    APIResponseWrapper,
     AuthenticationError,
     AuthorizationError,
     RateLimitError,
@@ -100,6 +99,18 @@ from core.api.services import (
     TokenInfo,
     ValidationService,
 )
+
+# Auth strategies
+from core.api.services.auth import (
+    APIKeyAuth,
+    BasicAuth,
+    BearerTokenAuth,
+    CompositeAuth,
+    CustomHeaderAuth,
+    OAuth2ClientCredentialsAuth,
+    RefreshableTokenAuth,
+)
+from core.api.services.response.api_response import APIResponseWrapper
 
 __version__ = "1.0.0"
 
@@ -128,4 +139,12 @@ __all__ = [
     "ValidationService",
     "AuthService",
     "TokenInfo",
+    # Auth strategies
+    "BearerTokenAuth",
+    "APIKeyAuth",
+    "BasicAuth",
+    "OAuth2ClientCredentialsAuth",
+    "CustomHeaderAuth",
+    "CompositeAuth",
+    "RefreshableTokenAuth",
 ]
