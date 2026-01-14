@@ -1,18 +1,18 @@
 import logging
 from functools import cached_property
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 
 from playwright.async_api import APIRequestContext
-from pydantic import BaseModel
 
 from core.api.config import HTTPConfig
 from core.api.http_client import HTTPClient
-from core.api.models import APIResponseWrapper
+from core.api.services.response.api_response import APIResponseWrapper
 from core.api.services.auth import APIKeyAuth, AuthStrategy, BasicAuth, BearerTokenAuth
 from core.api.services.validation import ValidationService
 
 logger = logging.getLogger(__name__)
 
+HTTPMethod = Literal["GET", "POST", "PUT", "PATCH", "DELETE"]
 
 class BaseAPIClient:
     """
@@ -118,13 +118,13 @@ class BaseAPIClient:
             >>> # Accept multiple status codes
             >>> response = await client.get('/users/1', expected_status=[200, 304])
         """
-        url = self._build_url(endpoint)
-        request_headers = await self._prepare_headers(headers)
-
-        response = await self._http.request("GET", url, params=params, headers=request_headers)
-
-        self.validation.validate_status_code(response, expected_status)
-        return response
+        return await self._execute_request(
+            method="GET",
+            endpoint=endpoint,
+            params=params,
+            headers=headers,
+            expected_status=expected_status,
+        )
 
     async def post(
         self,
@@ -157,15 +157,14 @@ class BaseAPIClient:
             >>> user_data = CreateUserRequest(name='John', email='john@example.com')
             >>> response = await client.post('/users', data=user_data.dict())
         """
-        url = self._build_url(endpoint)
-        request_headers = await self._prepare_headers(headers)
-
-        response = await self._http.request(
-            "POST", url, params=params, data=data, headers=request_headers
+        return await self._execute_request(
+            method="POST",
+            endpoint=endpoint,
+            data=data,
+            params=params,
+            headers=headers,
+            expected_status=expected_status,
         )
-
-        self.validation.validate_status_code(response, expected_status)
-        return response
 
     async def put(
         self,
@@ -194,15 +193,14 @@ class BaseAPIClient:
             ...     data={'name': 'John Updated', 'email': 'john.new@example.com'}
             ... )
         """
-        url = self._build_url(endpoint)
-        request_headers = await self._prepare_headers(headers)
-
-        response = await self._http.request(
-            "PUT", url, params=params, data=data, headers=request_headers
+        return await self._execute_request(
+            method="PUT",
+            endpoint=endpoint,
+            data=data,
+            params=params,
+            headers=headers,
+            expected_status=expected_status,
         )
-
-        self.validation.validate_status_code(response, expected_status)
-        return response
 
     async def patch(
         self,
@@ -229,15 +227,14 @@ class BaseAPIClient:
             >>> # Partial update
             >>> response = await client.patch('/users/1', data={'email': 'new@example.com'})
         """
-        url = self._build_url(endpoint)
-        request_headers = await self._prepare_headers(headers)
-
-        response = await self._http.request(
-            "PATCH", url, params=params, data=data, headers=request_headers
+        return await self._execute_request(
+            method="PATCH",
+            endpoint=endpoint,
+            data=data,
+            params=params,
+            headers=headers,
+            expected_status=expected_status,
         )
-
-        self.validation.validate_status_code(response, expected_status)
-        return response
 
     async def delete(
         self,
@@ -262,12 +259,54 @@ class BaseAPIClient:
             >>> response = await client.delete('/users/1')
             >>> assert response.status_code == 204
         """
+        return await self._execute_request(
+            method="DELETE",
+            endpoint=endpoint,
+            params=params,
+            headers=headers,
+            expected_status=expected_status,
+        )
+    
+    async def _execute_request(
+        self,
+        method: HTTPMethod,
+        endpoint: str,
+        data: Optional[Any] = None,
+        params: Optional[Dict[str, Any]] = None,    
+        headers: Optional[Dict[str, str]] = None,
+        expected_status: Union[int, List[int]] = None
+        ) -> APIResponseWrapper:
+        """
+        Generalized request method.
+
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            data: Request body
+            params: Query parameters
+            headers: Additional headers
+            expected_status: Expected status code(s)
+
+        Returns:
+            APIResponseWrapper with response data
+
+        Example:
+            >>> response = await client.request(
+            ...     'POST',
+            ...     '/users',
+            ...     data={'name': 'Alice'},
+            ...     expected_status=201
+            ... )
+        """
         url = self._build_url(endpoint)
         request_headers = await self._prepare_headers(headers)
 
-        response = await self._http.request("DELETE", url, params=params, headers=request_headers)
+        response = await self._http.request(
+            method, url, params=params, data=data, headers=request_headers
+        )
 
-        self.validation.validate_status_code(response, expected_status)
+        if expected_status is not None:
+            self.validation.validate_status_code(response, expected_status)
+            
         return response
 
     def _build_url(self, endpoint: str) -> str:
@@ -317,48 +356,69 @@ class BaseAPIClient:
 
     # Authentication convenience methods
 
-    def set_bearer_token(self, token: str, expires_at: Optional[float] = None) -> None:
+    def set_bearer_token(
+            self, 
+            token: Optional[str] = None, 
+            token_type: Optional[str] = None, 
+            expires_at: Optional[float] = None
+        ) -> None:
         """
         Configure Bearer token authentication.
 
         Args:
-            token: JWT or Bearer token
+            token: JWT or Bearer token (if None, read from environment)
+            token_type: Token type (default: 'Bearer')
             expires_at: Token expiration timestamp
 
         Example:
             >>> client.set_bearer_token("eyJhbGci...")
-            >>> response = await client.get('/protected-endpoint')
+            >>> # or from environment:
+            >>> client.set_bearer_token()
         """
-        self._auth_strategy = BearerTokenAuth(token, expires_at=expires_at)
+        self._auth_strategy = BearerTokenAuth.from_env(token, token_type)
+        if expires_at:
+            self._auth_strategy.expires_at = expires_at
         logger.info("Bearer token authentication configured")
 
-    def set_api_key(self, api_key: str, header_name: str = "X-API-Key") -> None:
+    def set_api_key(
+            self, 
+            api_key: Optional[str] = None, 
+            header_name: Optional[str] = None
+        ) -> None:
         """
         Configure API key authentication.
 
         Args:
-            api_key: API key value
-            header_name: Header name for API key
+            api_key: API key value (if None, read from environment)
+            header_name: Header name for API key (if None, read from environment)
 
         Example:
             >>> client.set_api_key("sk_test_abc123", header_name="Authorization")
+            >>> # or from environment:
+            >>> client.set_api_key()
         """
-        self._auth_strategy = APIKeyAuth(api_key, header_name)
-        logger.info(f"API key authentication configured (header: {header_name})")
+        self._auth_strategy = APIKeyAuth.from_env(api_key, header_name)
+        logger.info(f"API key authentication configured (header: {self._auth_strategy.header_name})")
 
-    def set_basic_auth(self, username: str, password: str) -> None:
+    def set_basic_auth(
+            self, 
+            username: Optional[str] = None, 
+            password: Optional[str] = None
+        ) -> None:
         """
         Configure Basic authentication.
 
         Args:
-            username: Username
-            password: Password
+            username: Username (if None, read from environment)
+            password: Password (if None, read from environment)
 
         Example:
             >>> client.set_basic_auth("admin", "password123")
+            >>> # or from environment:
+            >>> client.set_basic_auth()
         """
-        self._auth_strategy = BasicAuth(username, password)
-        logger.info(f"Basic authentication configured (user: {username})")
+        self._auth_strategy = BasicAuth.from_env(username, password)
+        logger.info(f"Basic authentication configured (user: {self._auth_strategy.username})")
 
     def set_auth(self, auth_strategy: AuthStrategy) -> None:
         """
