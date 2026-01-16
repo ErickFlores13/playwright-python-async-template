@@ -42,7 +42,7 @@ class HTTPClient:
         self._retry_service = RetryService(self.config.retry)
         self._interceptor = InterceptorService(self.config.interceptor)
 
-        logger.info(f"HTTPClient initialized with config: {self.config}")
+        logger.debug("HTTPClient initialized")
 
     async def request(
         self,
@@ -167,7 +167,6 @@ class HTTPClient:
                 kwargs["data"] = data
 
             # Execute request
-            logger.debug(f"Executing {method} {url}")
             playwright_response: APIResponse = await request_method(url, **kwargs)
 
             # Calculate elapsed time

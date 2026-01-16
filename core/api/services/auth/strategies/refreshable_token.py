@@ -66,12 +66,12 @@ class RefreshableTokenAuth(AuthStrategy):
     async def _refresh_token(self) -> None:
         """Refresh access token via callback."""
         try:
-            logger.info("Refreshing access token")
+            logger.debug("Refreshing access token")
             new_token = await self.refresh_callback()
             self.token = new_token
             # Reset expiration (estimate 1 hour if not provided)
             self.expires_at = time.time() + 3600
-            logger.info("Access token refreshed successfully")
+            logger.debug("Access token refreshed successfully")
         except Exception as e:
             logger.error(f"Token refresh failed: {e}")
             raise
