@@ -63,69 +63,81 @@ class AuthService:
         self._strategy: Optional[AuthStrategy] = None
 
     @classmethod
-    def with_bearer_token(
-        cls, token: str, token_type: str = "Bearer", expires_at: Optional[float] = None
+    def with_bearer_token_from_env(
+        cls,
+        api_token: Optional[str] = None,
+        token_type: Optional[str] = None,
+        expires_at: Optional[float] = None,
     ) -> "AuthService":
         """
-        Create auth service with Bearer token authentication.
+        Create auth service with Bearer token from environment variables.
 
         Args:
-            token: The bearer token string
-            token_type: Token type (default: "Bearer")
-            expires_at: Optional token expiration timestamp (Unix time)
+            api_token: Bearer token (if None, read from API_BEARER_TOKEN env var)
+            token_type: Token type (if None, defaults to 'Bearer')
+            expires_at: Optional token expiration timestamp
 
         Returns:
             Configured AuthService instance
+
+        Example:
+            >>> # From environment
+            >>> auth = AuthService.with_bearer_token_from_env()
+            >>> # With explicit token
+            >>> auth = AuthService.with_bearer_token_from_env("my-token")
         """
         service = cls()
-        service._strategy = BearerTokenAuth(token, token_type, expires_at)
+        service._strategy = BearerTokenAuth.from_env(api_token, token_type)
+        if expires_at:
+            service._strategy.expires_at = expires_at
         return service
 
     @classmethod
-    def with_api_key(cls, api_key: str, header_name: str = "X-API-Key") -> "AuthService":
+    def with_api_key_from_env(
+        cls, api_key: Optional[str] = None, header_name: Optional[str] = None
+    ) -> "AuthService":
         """
-        Create auth service with API key authentication.
+        Create auth service with API key from environment variables.
 
         Args:
-            api_key: The API key value
-            header_name: Header name for the API key (default: "X-API-Key")
+            api_key: API key (if None, read from API_KEY env var)
+            header_name: Header name (if None, read from API_KEY_HEADER_NAME env var)
 
         Returns:
             Configured AuthService instance
+
+        Example:
+            >>> # From environment
+            >>> auth = AuthService.with_api_key_from_env()
+            >>> # With explicit values
+            >>> auth = AuthService.with_api_key_from_env("key123", "X-API-Key")
         """
         service = cls()
-        service._strategy = APIKeyAuth(api_key, header_name)
+        service._strategy = APIKeyAuth.from_env(api_key, header_name)
         return service
 
     @classmethod
-    def with_basic_auth(cls, username: str, password: str) -> "AuthService":
+    def with_basic_auth_from_env(
+        cls, username: Optional[str] = None, password: Optional[str] = None
+    ) -> "AuthService":
         """
-        Create auth service with HTTP Basic authentication.
+        Create auth service with Basic auth from environment variables.
 
         Args:
-            username: Username for authentication
-            password: Password for authentication
+            username: Username (if None, read from API_USERNAME env var)
+            password: Password (if None, read from API_PASSWORD env var)
 
         Returns:
             Configured AuthService instance
+
+        Example:
+            >>> # From environment
+            >>> auth = AuthService.with_basic_auth_from_env()
+            >>> # With explicit credentials
+            >>> auth = AuthService.with_basic_auth_from_env("admin", "pass123")
         """
         service = cls()
-        service._strategy = BasicAuth(username, password)
-        return service
-
-    @classmethod
-    def with_custom_headers(cls, headers: Dict[str, str]) -> "AuthService":
-        """
-        Create auth service with custom header authentication.
-
-        Args:
-            headers: Dictionary of custom headers to add
-
-        Returns:
-            Configured AuthService instance
-        """
-        service = cls()
-        service._strategy = CustomHeaderAuth(headers)
+        service._strategy = BasicAuth.from_env(username, password)
         return service
 
     async def get_auth_headers(self) -> Dict[str, str]:

@@ -6,12 +6,10 @@ from playwright.async_api import APIRequestContext
 
 from core.api.config import HTTPConfig
 from core.api.http_client import HTTPClient
-from core.api.services.auth import APIKeyAuth, BasicAuth, BearerTokenAuth
+from core.api.services.auth import AuthService
 from core.api.services.response.api_response import APIResponseWrapper
 from core.api.services.validation import ValidationService
-
-if TYPE_CHECKING:
-    from core.api.services.auth.base import AuthStrategy
+from core.api.services.auth.base import AuthStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -379,9 +377,8 @@ class BaseAPIClient:
             >>> # or from environment:
             >>> client.set_bearer_token()
         """
-        self._auth_strategy = BearerTokenAuth.from_env(token, token_type)
-        if expires_at:
-            self._auth_strategy.expires_at = expires_at
+        auth_service = AuthService.with_bearer_token_from_env(token, token_type, expires_at)
+        self._auth_strategy = auth_service._strategy
         logger.info("Bearer token authentication configured")
 
     def set_api_key(self, api_key: Optional[str] = None, header_name: Optional[str] = None) -> None:
@@ -397,10 +394,9 @@ class BaseAPIClient:
             >>> # or from environment:
             >>> client.set_api_key()
         """
-        self._auth_strategy = APIKeyAuth.from_env(api_key, header_name)
-        logger.info(
-            f"API key authentication configured (header: {self._auth_strategy.header_name})"
-        )
+        auth_service = AuthService.with_api_key_from_env(api_key, header_name)
+        self._auth_strategy = auth_service._strategy
+        logger.info("API key authentication configured")
 
     def set_basic_auth(
         self, username: Optional[str] = None, password: Optional[str] = None
@@ -417,8 +413,9 @@ class BaseAPIClient:
             >>> # or from environment:
             >>> client.set_basic_auth()
         """
-        self._auth_strategy = BasicAuth.from_env(username, password)
-        logger.info(f"Basic authentication configured (user: {self._auth_strategy.username})")
+        auth_service = AuthService.with_basic_auth_from_env(username, password)
+        self._auth_strategy = auth_service._strategy
+        logger.info("Basic authentication configured")
 
     def set_auth(self, auth_strategy: AuthStrategy) -> None:
         """
