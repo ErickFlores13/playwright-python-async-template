@@ -5,7 +5,6 @@ from typing import Dict, Optional
 
 from playwright.async_api import APIRequestContext
 
-from core.api.base_client import BaseAPIClient
 from core.api.models import AuthenticationError
 from utils.config import Config
 
@@ -124,6 +123,8 @@ class BearerTokenAuth(AuthStrategy):
             ValueError: If required parameters are missing
             Exception: If token fetch fails
         """
+        from core.api.base_client import BaseAPIClient
+
         if not self._playwright_context or not self._auth_endpoint or not self._credentials:
             raise ValueError(
                 "Playwright context, auth endpoint, and credentials must be provided to fetch token."
@@ -131,7 +132,9 @@ class BearerTokenAuth(AuthStrategy):
 
         http_client = BaseAPIClient(self._playwright_context, self._api_url)
 
-        response = await http_client.post(self._auth_endpoint, data=self._credentials)
+        response = await http_client.post(
+            self._auth_endpoint, data=self._credentials, expected_status=None
+        )
 
         if response.is_success:
             self.token = response.get_data_field(self._token_field)
