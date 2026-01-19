@@ -290,6 +290,107 @@ class Config:
         except ValueError:
             return 1.0
 
+    # ========== HTTP Client Settings ==========
+    @staticmethod
+    def get_http_config_mode() -> str:
+        """
+        Get HTTP configuration mode for API testing.
+
+        Returns the preset name for HTTPConfig configuration.
+
+        Supported modes:
+            - 'standard' or 'default': Balanced config for most API testing (default)
+            - 'external' or 'external_api': Patient retries for third-party APIs
+            - 'local' or 'local_api': Fail-fast config for localhost/Docker
+            - 'testing' or 'fast': Minimal retries for fast unit tests
+
+        Returns:
+            HTTP config mode string (default: 'standard')
+
+        Example:
+            # In .env file
+            HTTP_CONFIG_MODE=external_api
+
+            # In code
+            mode = Config.get_http_config_mode()  # Returns 'external_api'
+        """
+        return os.getenv("HTTP_CONFIG_MODE", "standard").lower()
+
+    # ========== API Authentication Settings ==========
+    @staticmethod
+    def get_api_base_url() -> str:
+        """Get API base URL for API testing."""
+        return os.getenv("API_BASE_URL", Config.get_base_url())
+
+    @staticmethod
+    def get_api_bearer_token() -> str:
+        """Get API bearer token for authentication."""
+        return os.getenv("API_BEARER_TOKEN", "")
+
+    @staticmethod
+    def get_api_key() -> str:
+        """Get API key for authentication."""
+        return os.getenv("API_KEY", "")
+
+    @staticmethod
+    def get_api_username() -> str:
+        """Get API username for login flows or basic auth."""
+        return os.getenv("API_USERNAME", Config.get_test_username())
+
+    @staticmethod
+    def get_api_password() -> str:
+        """Get API password for login flows or basic auth."""
+        return os.getenv("API_PASSWORD", Config.get_test_password())
+
+    # ========== Basic Auth Settings ==========
+    @staticmethod
+    def get_api_username() -> str:
+        """Get API username for login flows or basic auth."""
+        return os.getenv("API_USERNAME", Config.get_test_username())
+
+    @staticmethod
+    def get_api_password() -> str:
+        """Get API password for login flows or basic auth."""
+        return os.getenv("API_PASSWORD", Config.get_test_password())
+
+    # ========== Bearer Token Settings ==========
+    @staticmethod
+    def get_api_bearer_token() -> str:
+        """Get API bearer token for authentication."""
+        return os.getenv("API_BEARER_TOKEN", "")
+
+    # ========== OAuth2 Settings ==========
+    @staticmethod
+    def get_oauth_client_id() -> str:
+        """Get OAuth2 client ID."""
+        return os.getenv("OAUTH_CLIENT_ID", "")
+
+    @staticmethod
+    def get_oauth_client_secret() -> str:
+        """Get OAuth2 client secret."""
+        return os.getenv("OAUTH_CLIENT_SECRET", "")
+
+    @staticmethod
+    def get_oauth_token_url() -> str:
+        """Get OAuth2 token endpoint URL."""
+        return os.getenv("OAUTH_TOKEN_URL", "")
+
+    @staticmethod
+    def get_oauth_scope() -> str:
+        """Get OAuth2 scope (space-separated scopes)."""
+        return os.getenv("OAUTH_SCOPE", "")
+
+    # ========= API Key Settings ==========
+    @staticmethod
+    def get_api_key() -> str:
+        """Get API key for authentication."""
+        return os.getenv("API_KEY", "")
+
+    @staticmethod
+    def get_api_key_header_name() -> str:
+        """Get API key header name."""
+        return os.getenv("API_KEY_HEADER_NAME", "X-API-Key")
+
 
 # Singleton instance for easy access
 config = Config()
