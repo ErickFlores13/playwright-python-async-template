@@ -1,10 +1,10 @@
 # UI Framework - User Guide
 
-**For:** QA Testers & SDETs  
+**For:** QA Testers & SDETs
 **Purpose:** Learn how to use the framework to automate test cases
 
-> **Maintaining/Extending the framework?** See [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)  
-> **AI-Powered Selector Healing?** See [ai/README.md](./ai/README.md)  
+> **Maintaining/Extending the framework?** See [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md)
+> **AI-Powered Selector Healing?** See [ai/README.md](./ai/README.md)
 
 ## Table of Contents
 
@@ -36,8 +36,8 @@ class LoginPage(BasePage):
         self.login_btn = '#loginBtn'
 
     async def login(self, username: str, password: str):
-        # Use strategy_factory to fill forms automatically
-        await self.strategy_factory.fill_data({
+        # Use fill_data() to fill forms automatically
+        await self.fill_data({
             self.username: username,
             self.password: password,
         })
@@ -68,9 +68,9 @@ async def test_login(page: Page):
 
 ## The Core Pattern
 
-### 90% Use Case: Strategy Pattern
+### 90% Use Case: Simplified API
 
-**The framework's killer feature** - automatic field type detection and interaction.
+**The framework's killer feature** - automatic field type detection with clean API.
 
 ```python
 class EmployeeFormPage(BasePage):
@@ -85,8 +85,8 @@ class EmployeeFormPage(BasePage):
         self.benefits = '.benefits-checkbox'
 
     async def fill_form(self, data: dict):
-        # 2. Pass selectors and values to strategy_factory
-        await self.strategy_factory.fill_data({
+        # 2. Pass selectors and values to fill_data()
+        await self.fill_data({
             self.name: 'John Doe',
             self.dept: 'Engineering',       # Select dropdown
             self.start_date: '2024-01-15',  # Date picker
@@ -151,7 +151,7 @@ The strategy pattern automatically handles these field types:
 **Multiple Checkboxes:**
 
 ```python
-await self.strategy_factory.fill_data({
+await self.fill_data({
     '.benefits-checkbox': ['Health Insurance', 'Dental', '401k']
 })
 ```
@@ -159,7 +159,7 @@ await self.strategy_factory.fill_data({
 **Multiple Files:**
 
 ```python
-await self.strategy_factory.fill_data({
+await self.fill_data({
     '#documents': ['C:/file1.pdf', 'C:/file2.pdf', 'C:/file3.pdf']
 })
 ```
@@ -168,7 +168,7 @@ await self.strategy_factory.fill_data({
 
 ```python
 # Click button multiple times to add rows, fill each row
-await self.strategy_factory.fill_data({
+await self.fill_data({
     '#addContact': [
         {'#contactName': 'John', '#contactPhone': '555-0001'},
         {'#contactName': 'Jane', '#contactPhone': '555-0002'},
@@ -231,7 +231,7 @@ class EmployeeFormPage(BasePage):
     async def create_employee(self, **kwargs):
         """Create employee with generated data"""
         data = self.generate_employee_data(**kwargs)
-        await self.strategy_factory.fill_data(data)
+        await self.fill_data(data)
         await self.page.click('#submit')
 ```
 
@@ -307,24 +307,22 @@ class EmployeeFormPage(BasePage):
     async def create_employee(self, **kwargs):
         """Create employee and store data for validation"""
         form_data, validation_data = self.generate_employee_data(**kwargs)
-        await self.strategy_factory.fill_data(form_data)
+        await self.fill_data(form_data)
         await self.page.click('#submit')
 
     async def edit_employee(self, **kwargs):
         """Edit employee with new data"""
         form_data, validation_data = self.generate_employee_data(**kwargs)
-        await self.strategy_factory.edit_item(form_data)
+        await self.edit_item(form_data)
         await self.page.click('#submit')
 
     async def validate_in_edit_view(self):
         """Validate form fields have correct values"""
-        await self.strategy_factory.validate_edit_view(self.form_data)
+        await self.validate_edit_view(self.form_data)
 
     async def validate_in_details_view(self):
         """Validate read-only details view"""
-        await self.validation.validate_record_information_in_details_view(
-            self.validation_data
-        )
+        await self.validate_details_view(self.validation_data)
 ```
 
 #### Test Usage
@@ -416,7 +414,7 @@ class RegistrationPage(BasePage):
     async def register_user(self, **kwargs):
         """Register with auto-generated data"""
         data = self.generate_user_data(**kwargs)
-        await self.strategy_factory.fill_data(data)
+        await self.fill_data(data)
         await self.page.click('#submit')
         return data  # Return for assertions in test
 
@@ -459,7 +457,7 @@ class RegistrationPage(BasePage):
 
     async def register(self, first_name: str, last_name: str,
                       email: str, password: str):
-        await self.strategy_factory.fill_data({
+        await self.fill_data({
             self.first_name: first_name,
             self.last_name: last_name,
             self.email: email,
@@ -814,17 +812,17 @@ class ReportPage(BasePage):
 
 ## Services Reference
 
-All page objects inheriting from `BasePage` have access to these services:
+All page objects inheriting from `BasePage` have access to these convenience methods and services:
 
-### 1. strategy_factory (Form Filling & Validation)
+### Convenience Methods (Recommended - Simplified API)
 
-**Use for:** 90% of form interactions, editing, and validation
+**Use for:** 90% of form interactions - these are shortcuts that make your code cleaner
 
-#### fill_data - Create/Fill Forms
+#### fill_data() - Create/Fill Forms
 
 ```python
 # Automatic field type detection and filling
-await self.strategy_factory.fill_data({
+await self.fill_data({
     '#textField': 'value',
     '#dropdown': 'Option 1',
     '#checkbox': True,
@@ -832,81 +830,110 @@ await self.strategy_factory.fill_data({
 })
 ```
 
-#### edit_item - Clear & Refill Fields
+**Shortcut to:** `self.strategy_factory.fill_data()`
+
+#### edit_item() - Clear & Refill Fields
 
 ```python
 # Clear existing values and fill with new data
-await self.strategy_factory.edit_item({
+await self.edit_item({
     '#name': 'Updated Name',
     '#email': 'newemail@example.com',
     '#department': 'Sales',
 })
-# Equivalent to:
-# await self.strategy_factory.clear_fields(data)
-# await self.strategy_factory.fill_data(data)
 ```
 
-#### validate_edit_view - Validate Form Fields
+**Shortcut to:** `self.strategy_factory.edit_item()`
+
+#### validate_edit_view() - Validate Form Fields
 
 ```python
 # Validate that fields in edit form have expected values
-await self.strategy_factory.validate_edit_view({
+await self.validate_edit_view({
     '#name': 'John Doe',
     '#department': 'Engineering',
     '#status': True,  # Checkbox checked
 })
 ```
 
-### 2. validation (Assertions)
+**Shortcut to:** `self.strategy_factory.validate_edit_view()`
+
+#### validate_details_view() - Validate Details View
+
+```python
+# Validate displayed values in read-only details view
+await self.validate_details_view({
+    '#div_id_name': 'John Doe',
+    '#div_id_email': 'john@example.com',
+    '#div_id_active': True,
+})
+```
+
+**Shortcut to:** `self.validation.validate_record_information_in_details_view()`
+
+---
+
+### Advanced Services (Direct Access When Needed)
+
+For advanced use cases, you can access services directly:
+
+#### 1. strategy_factory
+
+Direct access to form strategies for advanced operations:
+
+```python
+# Clear fields without refilling
+await self.strategy_factory.clear_fields(data)
+
+# Use fill_data with the service directly (same as self.fill_data())
+await self.strategy_factory.fill_data(data)
+```
+
+#### 2. validation (Assertions)
 
 **Use for:** Page state and element validation
-
-#### Standard Assertions
 
 ```python
 # Element visibility
 await self.validation.assert_visible('#successMsg')
 await self.validation.assert_not_visible('#errorMsg')
 
-# Element text
-await self.validation.assert_element_text('#status', 'Active')
+# Checkbox state
+await self.validation.assert_checked('#agreeTerms')
+await self.validation.assert_not_checked('#newsletter')
 
-# Page URL
-await self.validation.assert_url_contains('/dashboard')
+# Input value
+await self.validation.assert_value('#username', 'john_doe')
 
-# Element count
-await self.validation.assert_element_count('.items', 5)
-```
+# Message validation
+await self.validation.validate_message('#successMsg', 'Success!', exact=True)
 
-#### validate_record_information_in_details_view - Details View Validation
+# Toggle state
+await self.validation.validate_item_toggle('#activeToggle', 'enabled')
 
-```python
-# Validate displayed values in read-only details view
-# Uses same data structure as fill_data but with container selectors
+# Details view validation (also available as self.validate_details_view())
 await self.validation.validate_record_information_in_details_view({
-    '#div_id_name': 'John Doe',              # Text container
-    '#div_id_email': 'john@example.com',     # Text container
-    '#div_id_active': True,                  # Checkbox in container
-    '#div_id_benefits': ['Health', 'Dental'], # Multiple values in container
+    '#div_id_name': 'John Doe',
+    '#div_id_email': 'john@example.com',
 })
 ```
 
-### 3. wait (Smart Waiting)
+#### 3. wait (Smart Waiting)
 
-**Use for:** Page load and element waiting
+**Use for:** Page load waiting
 
 ```python
 # Wait for page load (smart fallback: networkidle → domcontentloaded)
 await self.wait.wait_for_page_load()
 
-# Wait for specific load state
-await self.wait.wait_for_load_state('domcontentloaded')
+# With custom timeout
+await self.wait.wait_for_page_load(timeout=60000)
+```
 
-# Wait for element (custom timeout)
-await self.wait.wait_for_element('#result', state='visible', timeout=10000)
+**Note:** For element waiting, use Playwright's built-in methods:
 
-# Wait for navigation
-await self.wait.wait_for_navigation(url_pattern='/success')
+```python
+await self.page.locator('#element').wait_for(state='visible', timeout=5000)
 ```
 
 ### 4. screenshot (Evidence Capture)
@@ -1008,7 +1035,7 @@ class FormPage(BasePage):
         self.email = '#email'
 
     async def fill_form(self, name, email):
-        await self.strategy_factory.fill_data({
+        await self.fill_data({
             self.name: name,
             self.email: email,
         })
@@ -1016,29 +1043,28 @@ class FormPage(BasePage):
 # ❌ Bad - Hardcoded selectors
 class FormPage(BasePage):
     async def fill_form(self, name, email):
-        await self.strategy_factory.fill_data({
+        await self.fill_data({
             '#name': name,  # Where is this defined?
             '#email': email,
         })
 ```
 
-### 3. Use Strategy Pattern for 90% of Cases
+### 3. Use Convenience Methods for Common Operations
 
 ```python
-# ✅ Good - Use strategy_factory
+# ✅ Good - Use convenience shortcuts
 async def fill_form(self, data):
-    await self.strategy_factory.fill_data(data)
+    await self.fill_data(data)  # Clean and simple
 
-# ❌ Bad - Manual field type checking (framework does this!)
-async def fill_form(self, selector, value):
-    element = self.page.locator(selector)
-    tag = await element.evaluate('el => el.tagName')
+async def update_form(self, data):
+    await self.edit_item(data)  # Clear and refill
 
-    if tag == 'input':
-        await element.fill(value)
-    elif tag == 'select':
-        await element.select_option(value)
-    # ... etc (don't do this!)
+async def verify_form(self, data):
+    await self.validate_edit_view(data)  # Validate fields
+
+# ⚠️ Also valid - Direct service access for advanced cases
+async def clear_specific_fields(self, fields):
+    await self.strategy_factory.clear_fields(fields)  # Advanced operation
 ```
 
 ### 4. Create Helper Methods for Components
@@ -1140,7 +1166,7 @@ async def fill_emergency_contacts(self, contacts: list):
 
    ```python
    await self.wait.wait_for_page_load()
-   await self.strategy_factory.fill_data({...})
+   await self.fill_data({...})
    ```
 
 3. **Check field type detection**
@@ -1179,7 +1205,7 @@ async def fill_emergency_contacts(self, contacts: list):
 
    ```python
    # Should work automatically
-   await self.strategy_factory.fill_data({
+   await self.fill_data({
        '#country': 'United States'  # Select2 auto-detected
    })
 
@@ -1269,12 +1295,12 @@ class MyPage(BasePage):  # ← Inherit
 # HTML: <label>Health Insurance<input type="checkbox"></label>
 
 # ✅ Correct - matches label text exactly
-await self.strategy_factory.fill_data({
+await self.fill_data({
     '.benefits': ['Health Insurance', 'Dental Insurance']
 })
 
 # ❌ Wrong - doesn't match full label
-await self.strategy_factory.fill_data({
+await self.fill_data({
     '.benefits': ['Health', 'Dental']  # Labels have "Insurance" suffix!
 })
 ```
@@ -1312,7 +1338,7 @@ class FormPageManual:
 ```python
 class FormPage(BasePage):
     async def fill_form(self, data):
-        await self.strategy_factory.fill_data(data)  # Done!
+        await self.fill_data(data)  # Done!
 ```
 
 ### Benefits
@@ -1373,46 +1399,44 @@ class MyPage(BasePage):
     async def create(self, **kwargs):
         """CREATE"""
         form_data, _ = self.generate_data(**kwargs)
-        await self.strategy_factory.fill_data(form_data)
+        await self.fill_data(form_data)
         await self.page.click('#submit')
 
     async def edit(self, **kwargs):
         """UPDATE"""
         form_data, _ = self.generate_data(**kwargs)
-        await self.strategy_factory.edit_item(form_data)
+        await self.edit_item(form_data)
         await self.page.click('#submit')
 
     async def validate_edit_view(self):
         """Validate form fields"""
-        await self.strategy_factory.validate_edit_view(self.form_data)
+        await self.validate_edit_view(self.form_data)
 
     async def validate_details_view(self):
         """Validate details view"""
-        await self.validation.validate_record_information_in_details_view(
-            self.details_data
-        )
+        await self.validate_details_view(self.details_data)
 ```
 
 ### Essential Operations
 
 ```python
 # FILL FORM (Create)
-await self.strategy_factory.fill_data({
+await self.fill_data({
     '#field': 'value'
 })
 
 # EDIT FORM (Clear + Fill)
-await self.strategy_factory.edit_item({
+await self.edit_item({
     '#field': 'new value'
 })
 
 # VALIDATE FORM FIELDS (Edit View)
-await self.strategy_factory.validate_edit_view({
+await self.validate_edit_view({
     '#field': 'expected value'
 })
 
 # VALIDATE DETAILS VIEW (Read-Only)
-await self.validation.validate_record_information_in_details_view({
+await self.validate_details_view({
     '#div_id_field': 'expected value'
 })
 

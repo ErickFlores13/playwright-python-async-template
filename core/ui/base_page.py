@@ -20,7 +20,13 @@ class BasePage:
     Designed to be used as part of a modular Page Object Model for test automation.
     Uses cached properties to initialize services only when accessed.
 
-    Services:
+    Convenience Methods (Recommended - Simplified API):
+    - fill_data(): Fill form fields automatically
+    - edit_item(): Clear and refill form fields
+    - validate_edit_view(): Validate form field values
+    - validate_details_view(): Validate read-only detail view
+
+    Services (Advanced - Direct access when needed):
     - attribute: DOM attribute manipulation for security/validation testing
     - element_resolver: Service for resolving and interacting with web elements
     - strategy_factory: Factory for form field interaction strategies
@@ -42,6 +48,8 @@ class BasePage:
     def __init__(self, page: Page):
         self.page = page
         self.timeout = Config.get_timeout()
+
+    # ==================== Lazy-Loaded Services ====================
 
     @cached_property
     def attribute(self) -> Attribute:
@@ -82,3 +90,84 @@ class BasePage:
     def wait(self) -> Wait:
         """Service for managing page load and element wait strategies."""
         return Wait(self.page)
+
+    # ==================== Convenience Shortcuts (Facade Pattern) ====================
+
+    async def fill_data(self, data: dict) -> None:
+        """
+        Fill form fields automatically with type detection.
+
+        This is a convenience shortcut to self.strategy_factory.fill_data().
+        Automatically detects field types and uses appropriate interaction strategy.
+
+        Args:
+            data: Dict mapping selectors to values
+
+        Example:
+            await self.fill_data({
+                '#name': 'John Doe',
+                '#email': 'john@example.com',
+                '#department': 'Engineering',
+                '#active': True,
+                '#resume': 'C:/resume.pdf',
+            })
+        """
+        await self.strategy_factory.fill_data(data)
+
+    async def edit_item(self, data: dict) -> None:
+        """
+        Clear existing values and refill form fields.
+
+        This is a convenience shortcut to self.strategy_factory.edit_item().
+        Clears fields before filling with new values.
+
+        Args:
+            data: Dict mapping selectors to new values
+
+        Example:
+            await self.edit_item({
+                '#name': 'Jane Smith',
+                '#department': 'Sales',
+            })
+        """
+        await self.strategy_factory.edit_item(data)
+
+    async def validate_edit_view(self, data: dict) -> None:
+        """
+        Validate form field values in edit view.
+
+        This is a convenience shortcut to self.strategy_factory.validate_edit_view().
+        Validates that form fields contain expected values.
+
+        Args:
+            data: Dict mapping selectors to expected values
+
+        Example:
+            await self.validate_edit_view({
+                '#name': 'John Doe',
+                '#department': 'Engineering',
+                '#active': True,
+            })
+        """
+        await self.strategy_factory.validate_edit_view(data)
+
+    async def validate_details_view(self, data: dict) -> None:
+        """
+        Validate values in read-only details view.
+
+        This is a convenience shortcut to:
+        self.validation.validate_record_information_in_details_view()
+
+        Validates that container elements display expected values.
+
+        Args:
+            data: Dict mapping container selectors to expected values
+
+        Example:
+            await self.validate_details_view({
+                '#div_id_name': 'John Doe',
+                '#div_id_email': 'john@example.com',
+                '#div_id_active': True,
+            })
+        """
+        await self.validation.validate_record_information_in_details_view(data)
