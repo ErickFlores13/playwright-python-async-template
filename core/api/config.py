@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional
+from typing import Callable, List
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ class HTTPConfig:
         config_func = config_map.get(mode)
 
         if config_func:
-            logger.info(f"Loading HTTP config from environment: {mode}")
+            logger.debug(f"Loading HTTP config from environment: {mode}")
             return config_func()
         else:
             logger.warning(f"Unknown HTTP_CONFIG_MODE '{mode}', using 'standard'")

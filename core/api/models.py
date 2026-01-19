@@ -1,8 +1,5 @@
 import logging
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
-
-from playwright.async_api import APIResponse
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 

@@ -1,15 +1,15 @@
 import logging
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 from playwright.async_api import APIRequestContext
 
 from core.api.config import HTTPConfig
 from core.api.http_client import HTTPClient
 from core.api.services.auth import AuthService
+from core.api.services.auth.base import AuthStrategy
 from core.api.services.response.api_response import APIResponseWrapper
 from core.api.services.validation import ValidationService
-from core.api.services.auth.base import AuthStrategy
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +54,7 @@ class BaseAPIClient:
         self._base_url = base_url.rstrip("/")
         self._auth_strategy = auth_strategy
 
-        logger.info(f"BaseAPIClient initialized for {self._base_url}")
+        logger.debug(f"BaseAPIClient initialized for {self._base_url}")
 
     @cached_property
     def validation(self) -> ValidationService:

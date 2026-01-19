@@ -59,14 +59,14 @@ class APIResponseWrapper:
     def is_server_error(self) -> bool:
         """Check if response is server error (5xx status code)."""
         return 500 <= self.status_code < 600
-    
+
     def get_data_field(self, field: str, default: Any = None) -> Any:
         """
         Get a specific field from the response data.
 
         Args:
             field: Field name to retrieve
-            default: Default value if field not found  
+            default: Default value if field not found
         Returns:
             Value of the field or default
         Example:
@@ -100,5 +100,6 @@ class APIResponseWrapper:
         return (
             f"APIResponseWrapper(status={self.status_code}, "
             f"method={self.method}, url={self.url}, "
-            f"elapsed={self.elapsed_ms:.2f}ms)"
+            f"elapsed={self.elapsed_ms:.2f}ms,"
+            f" data={self.data})"
         )

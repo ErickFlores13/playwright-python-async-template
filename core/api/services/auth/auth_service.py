@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 
 from .base import AuthStrategy
-from .strategies import APIKeyAuth, BasicAuth, BearerTokenAuth, CustomHeaderAuth
+from .strategies import APIKeyAuth, BasicAuth, BearerTokenAuth
 
 logger = logging.getLogger(__name__)
 
