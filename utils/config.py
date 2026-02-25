@@ -343,22 +343,6 @@ class Config:
         return os.getenv("API_PASSWORD", Config.get_test_password())
 
     # ========== Basic Auth Settings ==========
-    @staticmethod
-    def get_api_username() -> str:
-        """Get API username for login flows or basic auth."""
-        return os.getenv("API_USERNAME", Config.get_test_username())
-
-    @staticmethod
-    def get_api_password() -> str:
-        """Get API password for login flows or basic auth."""
-        return os.getenv("API_PASSWORD", Config.get_test_password())
-
-    # ========== Bearer Token Settings ==========
-    @staticmethod
-    def get_api_bearer_token() -> str:
-        """Get API bearer token for authentication."""
-        return os.getenv("API_BEARER_TOKEN", "")
-
     # ========== OAuth2 Settings ==========
     @staticmethod
     def get_oauth_client_id() -> str:
@@ -381,11 +365,6 @@ class Config:
         return os.getenv("OAUTH_SCOPE", "")
 
     # ========= API Key Settings ==========
-    @staticmethod
-    def get_api_key() -> str:
-        """Get API key for authentication."""
-        return os.getenv("API_KEY", "")
-
     @staticmethod
     def get_api_key_header_name() -> str:
         """Get API key header name."""

@@ -151,47 +151,96 @@ Pre-commit hooks run automatically on `git commit` and ensure consistent code qu
 ## 🏗️ Project Structure
 
 ```
-playwright-python-async-template/
-├── pages/                      # Page Object Model
-│   ├── base_page.py           # Core browser interactions
-│   ├── standard_web_page.py   # Common UI patterns (CRUD, filters, etc.)
-│   ├── login_page.py          # Authentication
-│   └── examples/              # Example page objects
+playwright-python-async-framework/
+├── core/                           # Framework internals
+│   ├── api/                        # API testing layer
+│   │   ├── base_client.py          # BaseAPIClient (HTTP methods + auth)
+│   │   ├── http_client.py          # Low-level HTTP with retries
+│   │   ├── config.py               # HTTPConfig presets
+│   │   ├── models.py               # API exception models
+│   │   ├── services/
+│   │   │   ├── auth/               # Authentication strategies
+│   │   │   │   └── strategies/     # Bearer, APIKey, Basic, OAuth2, etc.
+│   │   │   ├── response/           # APIResponseWrapper
+│   │   │   ├── retry.py            # Retry with exponential backoff
+│   │   │   ├── interceptor.py      # Request/response interceptors
+│   │   │   └── validation.py       # Schema + status code validation
+│   │   ├── README.md               # API usage guide (user-facing)
+│   │   └── DEVELOPER_GUIDE.md      # How to extend the API layer
+│   │
+│   ├── ui/                         # UI testing layer
+│   │   ├── base_page.py            # BasePage with lazy-loaded services
+│   │   ├── ai/                     # AI-powered selector healing
+│   │   │   ├── locator_healer.py   # Main healing orchestrator
+│   │   │   ├── cache_manager.py    # Persistent healing cache
+│   │   │   ├── metrics_tracker.py  # Healing metrics & reports
+│   │   │   └── extraction/         # DOM extraction strategies
+│   │   ├── browser/
+│   │   │   ├── browser_manager.py  # Browser lifecycle management
+│   │   │   └── strategies/         # Local / CI / Debug strategies
+│   │   ├── components/             # Reusable UI components
+│   │   │   ├── button.py, checkbox.py, datepicker.py
+│   │   │   ├── input.py, modal.py, radio.py
+│   │   │   ├── select.py, select2.py, table.py
+│   │   │   └── file.py
+│   │   ├── services/               # Page interaction services
+│   │   │   ├── attribute.py        # DOM attribute manipulation
+│   │   │   ├── screenshot.py       # Evidence capture
+│   │   │   ├── storage.py          # LocalStorage / Cookies
+│   │   │   ├── tab_window.py       # Multi-tab management
+│   │   │   ├── validation.py       # Assertion helpers
+│   │   │   ├── wait.py             # Page-load waiting
+│   │   │   └── form/               # Form-filling strategies
+│   │   ├── wrappers/               # Locator wrappers
+│   │   │   ├── retry_locator.py    # Retry failed operations
+│   │   │   └── smart_locator.py    # AI healing + retry wrapper
+│   │   ├── README.md               # UI usage guide (user-facing)
+│   │   └── DEVELOPER_GUIDE.md      # How to extend the UI layer
+│   │
+│   ├── reporting/
+│   │   └── pytest_hooks.py         # Auto-screenshot on failure + Allure
+│   │
+│   └── utils/
+│       ├── exceptions.py           # Custom exception types
+│       ├── logger_config.py        # Centralized logging setup
+│       └── playwright_utils.py     # Locator resolution helpers
 │
-├── helpers/                    # Helper modules
-│   ├── api_client.py          # API testing client
-│   ├── database.py            # Database client (PostgreSQL, MySQL, etc.)
-│   └── redis_client.py        # Redis client
+├── services/                       # Project-level page objects
+│   └── base_pages/
+│       └── login_page.py           # Generic login page (used by conftest)
 │
-├── utils/                      # Utilities
-│   ├── config.py              # Configuration management
-│   ├── consts.py              # Constants and enums
-│   ├── exceptions.py          # Custom exceptions
-│   └── test_helpers.py        # Test utilities
+├── helpers/                        # Infrastructure clients
+│   ├── database.py                 # DatabaseClient (PostgreSQL, MySQL, …)
+│   └── redis_client.py             # RedisClient
 │
-├── tests/                      # Test suites
-│   ├── test_ui_examples.py    # UI testing examples
-│   ├── test_api_examples.py   # API testing examples
-│   ├── test_database_examples.py  # Database testing examples
-│   └── test_crud_example.py   # Complete CRUD example
+├── utils/                          # Project-level utilities
+│   ├── config.py                   # Centralized configuration (env vars)
+│   ├── consts.py                   # Enumerations (FilterType, etc.)
+│   └── test_helpers.py             # TestDataGenerator + TestHelpers
 │
-├── docs/                       # Documentation
-│   ├── UI_TESTING.md          # UI testing guide
-│   ├── API_TESTING.md         # API testing guide
-│   └── DATABASE_TESTING.md    # Database testing guide
+├── tests/                          # Example test suites
+│   ├── test_ui_examples.py         # UI automation examples
+│   ├── test_api_examples.py        # REST API testing examples
+│   ├── test_database_examples.py   # Database & Redis testing examples
+│   └── test_crud_example.py        # Complete CRUD workflow example
 │
-├── ci/                         # CI/CD configuration
-│   └── Jenkinsfile            # Jenkins pipeline
+├── docs/                           # User-facing documentation
+│   ├── UI_TESTING.md               # UI testing patterns & examples
+│   ├── API_TESTING.md              # API testing patterns & examples
+│   └── DATABASE_TESTING.md         # Database testing patterns & examples
 │
-├── conftest.py                 # Pytest configuration and fixtures
-├── pytest.ini                  # Pytest settings
-├── requirements.txt            # Python dependencies
-├── Dockerfile                  # Docker configuration
-├── docker-compose.yml          # Docker Compose orchestration
-├── .pre-commit-config.yaml     # Pre-commit hooks configuration
-├── pyproject.toml              # Python tooling configuration
-├── .env.example               # Environment template
-└── README.md                   # This file
+├── ci/                             # CI/CD configuration
+│   └── Jenkinsfile                 # Jenkins pipeline
+│
+├── conftest.py                     # Pytest fixtures (browser, page, api_client, …)
+├── pytest.ini                      # Pytest settings (markers, testpaths, …)
+├── requirements.txt                # Python dependencies
+├── Dockerfile                      # Docker image for test runner
+├── docker-compose.yml              # Multi-service Docker Compose (DB + Redis)
+├── .pre-commit-config.yaml         # Pre-commit hooks (black, flake8, mypy, …)
+├── pyproject.toml                  # Tool configuration (black, isort, mypy, …)
+├── .env.example                    # Environment variable template
+└── README.md                       # This file
 ```
 
 ---

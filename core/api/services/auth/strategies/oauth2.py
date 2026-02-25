@@ -70,31 +70,57 @@ class OAuth2ClientCredentialsAuth(AuthStrategy):
 
     async def _fetch_token(self) -> None:
         """
-        Fetch access token from token endpoint.
+        Fetch access token from token endpoint using client credentials flow.
 
-        Note: Requires HTTPClient to be injected or uses requests library.
+        Makes a POST request to the token URL with client credentials.
+        Uses the standard OAuth2 client_credentials grant type.
+
+        Raises:
+            RuntimeError: If token request fails or response is invalid
         """
-        # This would use HTTPClient in real implementation
-        # For now, showing the structure
+        import asyncio
+        import json
+        import urllib.error
+        import urllib.parse
+        import urllib.request
+
         logger.info(f"Fetching OAuth2 token from {self.token_url}")
 
-        # In real implementation:
-        # response = await http_client.post(
-        #     self.token_url,
-        #     data={
-        #         'grant_type': 'client_credentials',
-        #         'client_id': self.client_id,
-        #         'client_secret': self.client_secret,
-        #         'scope': self.scope
-        #     }
-        # )
-        # self._access_token = response.data['access_token']
-        # self._expires_at = time.time() + response.data.get('expires_in', 3600)
+        post_data: dict = {
+            "grant_type": "client_credentials",
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+        }
+        if self.scope:
+            post_data["scope"] = self.scope
 
-        raise NotImplementedError(
-            "OAuth2 token fetching requires HTTPClient integration. "
-            "Use BearerTokenAuth with pre-fetched token for now."
-        )
+        encoded_data = urllib.parse.urlencode(post_data).encode("utf-8")
+
+        def _sync_fetch() -> dict:
+            req = urllib.request.Request(
+                self.token_url,
+                data=encoded_data,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+
+        try:
+            token_response = await asyncio.to_thread(_sync_fetch)
+            self._access_token = token_response["access_token"]
+            expires_in = token_response.get("expires_in", 3600)
+            self._expires_at = time.time() + int(expires_in)
+            logger.info("OAuth2 token fetched successfully")
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            raise RuntimeError(
+                f"OAuth2 token request failed (HTTP {e.code}): {error_body}"
+            ) from e
+        except (KeyError, ValueError) as e:
+            raise RuntimeError(f"Invalid OAuth2 token response: {e}") from e
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch OAuth2 token: {e}") from e
 
     @classmethod
     def from_env(

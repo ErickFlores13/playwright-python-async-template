@@ -16,6 +16,8 @@ from core.ui.browser.strategies.strategy_factory import get_browser_strategy
 from core.utils.logger_config import configure_logging
 from helpers.database import DatabaseClient
 
+from core.api.base_client import BaseAPIClient
+
 # Custom imports
 from helpers.redis_client import RedisClient
 from services.base_pages.login_page import LoginPage
@@ -160,6 +162,31 @@ async def login(page: Page):
         return await LoginPage(page).login(username, password, url)
 
     return _connect_to_environment
+
+
+# --- API client fixture -------------------------------------------------------
+@pytest_asyncio.fixture(scope="function")
+async def api_client(context: BrowserContext) -> BaseAPIClient:
+    """
+    Provides a ready-to-use BaseAPIClient for API testing.
+
+    The client is pre-configured with the base URL from the
+    ``API_BASE_URL`` environment variable (falls back to ``BASE_URL``).
+    Authentication can be configured per-test via:
+
+    - ``client.set_bearer_token("token")``
+    - ``client.set_api_key("key")``
+    - ``client.set_basic_auth("user", "pass")``
+
+    Example::
+
+        async def test_get_users(api_client):
+            api_client.set_bearer_token(Config.get_api_bearer_token())
+            response = await api_client.get("/users")
+            assert response.is_success
+            assert isinstance(response.data, list)
+    """
+    return BaseAPIClient(context.request, Config.get_api_base_url())
 
 
 # --- Database fixtures --------------------------------------------------------
